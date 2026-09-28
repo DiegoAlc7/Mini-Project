@@ -570,7 +570,7 @@ export default function GanttChart({
                 soloHabiles ? 'bg-white text-blue-700 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <span>Solo Hábiles</span>
+              <span>Días Hábiles</span>
             </button>
           </div>
 
@@ -810,7 +810,7 @@ export default function GanttChart({
                                 onMouseLeave={handleTaskMouseLeave}
                                 className="h-7 flex items-center relative cursor-pointer group/slack"
                                 style={{ width: `${slackWidth}px` }}
-                                title={`Holgura Total: +${holgura}d • Fecha límite: ${formatDateDDMMYYYY(item.fecha_limite)}`}
+                                title={`Fecha límite: ${formatDateDDMMYYYY(item.fecha_limite)}`}
                               >
                                 {/* Barra translúcida del mismo color azul pero tenue y menos visible */}
                                 <div className="w-full h-full bg-blue-500/10 hover:bg-blue-500/20 border-y border-dashed border-blue-400/40 transition-colors flex items-center justify-center relative overflow-hidden">
@@ -885,7 +885,7 @@ export default function GanttChart({
               </span>
             ) : (
               <span className="text-[10px] font-medium bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full border border-blue-200">
-                No Crítica (HT: <span className="font-mono">{hoveredTask.cpm?.holgura_total ?? 0}d</span>)
+                No Crítica (+<span className="font-mono">{hoveredTask.cpm?.holgura_total ?? 0}d</span>)
               </span>
             )}
           </div>
@@ -902,18 +902,20 @@ export default function GanttChart({
               <span className="font-semibold text-slate-700 font-mono text-[11px]">
                 {formatDateDDMMYYYY(hoveredTask.item.fecha_inicio)}
               </span>
-              {hoveredTask.item.type === 'leaf' && (
-                <span className="text-[10px] text-slate-400 block font-mono">Día {hoveredTask.item.es}</span>
-              )}
+              <span className="text-[10px] text-slate-400 block font-mono">
+                Día {Math.floor(hoveredTask.item.es) + 1}
+              </span>
             </div>
             <div>
               <span className="text-slate-400 text-[10px] block font-medium">Fecha de Fin</span>
               <span className="font-semibold text-slate-700 font-mono text-[11px]">
                 {formatDateDDMMYYYY(hoveredTask.item.fecha_fin)}
               </span>
-              {hoveredTask.item.type === 'leaf' && (
-                <span className="text-[10px] text-slate-400 block font-mono">Día {hoveredTask.item.ef}</span>
-              )}
+              <span className="text-[10px] text-slate-400 block font-mono">
+                Día {hoveredTask.item.duracion > 0
+                  ? Math.max(Math.floor(hoveredTask.item.es) + 1, Math.ceil(hoveredTask.item.ef))
+                  : Math.floor(hoveredTask.item.es) + 1}
+              </span>
             </div>
             <div className="col-span-2 pt-1.5 border-t border-slate-200/70 flex items-center justify-between text-slate-600">
               <span className="text-[10px] font-medium">Duración Total:</span>
@@ -938,6 +940,11 @@ export default function GanttChart({
                   <span>Fecha límite sin retrasar proyecto:</span>
                   <span className="font-bold font-mono text-slate-800">
                     {formatDateDDMMYYYY(hoveredTask.cpm.fecha_limite || hoveredTask.item.fecha_limite)}
+                    {hoveredTask.cpm.lf !== undefined && (
+                      <span className="text-[10px] text-slate-400 font-normal ml-1">
+                        (Día {Math.ceil(hoveredTask.cpm.lf)})
+                      </span>
+                    )}
                   </span>
                 </div>
               </div>
