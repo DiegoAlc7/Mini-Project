@@ -65,6 +65,7 @@ export interface CpmResult {
   es_critica: boolean;
   fecha_inicio: string;
   fecha_fin: string;
+  fecha_limite?: string;
   responsable: string;
 }
 

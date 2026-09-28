@@ -121,10 +121,12 @@ export function calcularCpm(proyectoId: number, soloHabiles: boolean = false) {
     const act = mapa.get(id)!;
     const diaInicio = Math.floor(act.es);
     const diaFin = act.ef > act.es ? Math.max(diaInicio, Math.ceil(act.ef) - 1) : diaInicio;
+    const diaLf = act.lf > act.ls ? Math.max(Math.floor(act.ls), Math.ceil(act.lf) - 1) : Math.floor(act.ls);
     return {
       ...act,
       fecha_inicio: diaProyectoAFecha(fechaInicio, diaInicio, soloHabiles),
-      fecha_fin: diaProyectoAFecha(fechaInicio, diaFin, soloHabiles)
+      fecha_fin: diaProyectoAFecha(fechaInicio, diaFin, soloHabiles),
+      fecha_limite: diaProyectoAFecha(fechaInicio, diaLf, soloHabiles),
     };
   });
 

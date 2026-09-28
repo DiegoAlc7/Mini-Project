@@ -8,6 +8,7 @@ import {
   ZoomIn,
   ZoomOut,
   Calendar,
+  Clock,
 } from 'lucide-react';
 import { useResources } from '../../context/ResourceContext';
 
@@ -38,6 +39,9 @@ interface GanttRowItem {
   responsable?: string;
   es_critica?: boolean;
   actividadId?: number;
+  holgura_total?: number;
+  lf?: number;
+  fecha_limite?: string;
 }
 
 interface DiaInfo {
@@ -72,6 +76,15 @@ function formatShortDate(str?: string): string {
   const parts = str.split('-');
   if (parts.length < 3) return str;
   return `${parts[2]}.${parts[1]}`;
+}
+
+function formatDateDDMMYYYY(str?: string): string {
+  if (!str) return 'No definida';
+  const parts = str.split('-');
+  if (parts.length === 3 && parts[0].length === 4) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return str;
 }
 
 export default function GanttChart({
@@ -274,6 +287,9 @@ export default function GanttChart({
             responsable: nodo.actividad?.responsable,
             es_critica: esCritica,
             actividadId: nodo.actividad?.id,
+            holgura_total: cpmAct?.holgura_total ?? 0,
+            lf: cpmAct?.lf ?? 0,
+            fecha_limite: cpmAct?.fecha_limite ?? '',
           });
         }
       }
@@ -518,8 +534,8 @@ export default function GanttChart({
       {/* Barra de Controles y Filtros Superior (Altura Estática) */}
       <div className="shrink-0 bg-white border border-slate-200 rounded-xl p-3 flex flex-wrap items-center justify-between gap-4 shadow-2xs">
 
-        {/* Leyenda de Colores Restringida (Rojo = Crítica, Azul = No Crítica) */}
-        <div className="flex items-center gap-3.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium">
+        {/* Leyenda de Colores (Rojo = Crítica, Azul = No Crítica, Ámbar = Holgura Total) */}
+        <div className="flex items-center gap-3.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium flex-wrap">
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-xs bg-red-500 shrink-0 shadow-2xs" />
             <span className="font-semibold text-red-700">Ruta Crítica</span>
@@ -527,6 +543,12 @@ export default function GanttChart({
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-xs bg-blue-600 shrink-0 shadow-2xs" />
             <span className="font-semibold text-blue-700">No Crítica</span>
+          </div>
+          <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+            <span className="w-4 h-2.5 rounded-xs bg-amber-400/20 border-y border-dashed border-amber-500 flex items-center justify-end">
+              <span className="w-1 h-2.5 bg-amber-500 rounded-r-2xs" />
+            </span>
+            <span className="font-semibold text-amber-800">Holgura Total</span>
           </div>
         </div>
 
@@ -734,9 +756,12 @@ export default function GanttChart({
                         </div>
                       </div>
                     ) : (
-                      /* REGLA 1: Tareas Hoja con Etiquetas Dinámicas (Overflow Text) */
+                      /* REGLA 1: Tareas Hoja con Etiquetas Dinámicas y Barra de Holgura Total */
                       (() => {
                         const isSmallBar = barWidth < 110;
+                        const holgura = item.holgura_total ?? 0;
+                        const slackWidth = holgura > 0 ? Math.round(holgura * colWidth) : 0;
+                        const hasSlack = slackWidth > 0;
 
                         return (
                           <div
@@ -750,9 +775,11 @@ export default function GanttChart({
                             <div
                               onMouseEnter={(e) => handleTaskMouseEnter(e, item)}
                               onMouseLeave={handleTaskMouseLeave}
-                              className={`h-7 rounded-md shadow-xs flex items-center px-2 text-[11px] font-medium text-white transition-all cursor-pointer ${barBgClass} hover:brightness-105 hover:ring-2 hover:ring-offset-1 ${
+                              className={`h-7 shadow-xs flex items-center px-2 text-[11px] font-medium text-white transition-all cursor-pointer ${barBgClass} hover:brightness-105 hover:ring-2 hover:ring-offset-1 ${
                                 isCritical ? 'hover:ring-red-400' : 'hover:ring-blue-400'
-                              } ${isSmallBar ? 'justify-center' : 'justify-between'}`}
+                              } ${isSmallBar ? 'justify-center' : 'justify-between'} ${
+                                hasSlack ? 'rounded-l-md rounded-r-none border-r border-black/15' : 'rounded-md'
+                              }`}
                               style={{ width: `${barWidth}px` }}
                             >
                               {isSmallBar ? (
@@ -775,6 +802,35 @@ export default function GanttChart({
                                 </>
                               )}
                             </div>
+
+                            {/* Barra de Holgura Total (Slack / Float) hasta la Fecha Límite */}
+                            {hasSlack && (
+                              <div
+                                onMouseEnter={(e) => handleTaskMouseEnter(e, item)}
+                                onMouseLeave={handleTaskMouseLeave}
+                                className="h-7 flex items-center relative cursor-pointer group/slack"
+                                style={{ width: `${slackWidth}px` }}
+                                title={`Holgura Total: +${holgura}d • Fecha límite: ${formatDateDDMMYYYY(item.fecha_limite)}`}
+                              >
+                                {/* Barra rayada/translúcida de holgura */}
+                                <div className="w-full h-full bg-amber-400/20 hover:bg-amber-400/30 border-y border-dashed border-amber-500/70 transition-colors flex items-center justify-center relative overflow-hidden">
+                                  {/* Línea central punteada */}
+                                  <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-b border-dotted border-amber-500/50 pointer-events-none" />
+                                  {/* Indicador de días de holgura */}
+                                  {slackWidth >= 34 && (
+                                    <span className="relative z-1 text-[9px] font-mono font-bold text-amber-800 bg-white/70 px-1 rounded shadow-2xs select-none">
+                                      +{holgura}d
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Marcador de Tope / Fecha Límite (Late Finish) */}
+                                <div
+                                  className="w-1.5 h-7 bg-amber-500 hover:bg-amber-600 rounded-r-md shrink-0 shadow-xs transition-colors z-2"
+                                  title={`Fecha límite sin retrasar el proyecto: ${formatDateDDMMYYYY(item.fecha_limite)}`}
+                                />
+                              </div>
+                            )}
 
                             {/* REGLA 1: Si la barra es pequeña, saca el texto del nombre hacia el exterior derecho */}
                             {isSmallBar && (
@@ -844,7 +900,7 @@ export default function GanttChart({
             <div>
               <span className="text-slate-400 text-[10px] block font-medium">Fecha de Inicio</span>
               <span className="font-semibold text-slate-700 font-mono text-[11px]">
-                {hoveredTask.item.fecha_inicio || 'No definida'}
+                {formatDateDDMMYYYY(hoveredTask.item.fecha_inicio)}
               </span>
               {hoveredTask.item.type === 'leaf' && (
                 <span className="text-[10px] text-slate-400 block font-mono">Día {hoveredTask.item.es}</span>
@@ -853,7 +909,7 @@ export default function GanttChart({
             <div>
               <span className="text-slate-400 text-[10px] block font-medium">Fecha de Fin</span>
               <span className="font-semibold text-slate-700 font-mono text-[11px]">
-                {hoveredTask.item.fecha_fin || 'No definida'}
+                {formatDateDDMMYYYY(hoveredTask.item.fecha_fin)}
               </span>
               {hoveredTask.item.type === 'leaf' && (
                 <span className="text-[10px] text-slate-400 block font-mono">Día {hoveredTask.item.ef}</span>
@@ -865,6 +921,27 @@ export default function GanttChart({
                 {hoveredTask.item.duracion}d ({soloHabiles ? 'hábiles' : 'calendario'})
               </span>
             </div>
+
+            {/* Detalle de Holgura Total y Fecha Límite */}
+            {hoveredTask.item.type === 'leaf' && hoveredTask.cpm && (hoveredTask.cpm.holgura_total ?? 0) > 0 && (
+              <div className="col-span-2 pt-2 mt-1 border-t border-slate-200/70 bg-amber-50/70 -mx-2.5 -mb-2.5 p-2.5 rounded-b-xl flex flex-col gap-1 text-[11px]">
+                <div className="flex items-center justify-between text-amber-900 font-medium">
+                  <span className="flex items-center gap-1.5 text-[10px]">
+                    <span className="w-2 h-2 rounded-xs bg-amber-500 inline-block shrink-0 shadow-2xs" />
+                    Holgura Total (Demora permitida):
+                  </span>
+                  <span className="font-bold font-mono text-[11px] text-amber-800">
+                    +{hoveredTask.cpm.holgura_total}d
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-amber-800/90">
+                  <span>Fecha límite sin retrasar proyecto:</span>
+                  <span className="font-bold font-mono text-amber-950">
+                    {formatDateDDMMYYYY(hoveredTask.cpm.fecha_limite || hoveredTask.item.fecha_limite)}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Responsable asignado */}
