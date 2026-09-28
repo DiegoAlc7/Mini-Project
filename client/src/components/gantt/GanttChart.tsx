@@ -545,10 +545,10 @@ export default function GanttChart({
             <span className="font-semibold text-blue-700">No Crítica</span>
           </div>
           <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
-            <span className="w-4 h-2.5 rounded-xs bg-amber-400/20 border-y border-dashed border-amber-500 flex items-center justify-end">
-              <span className="w-1 h-2.5 bg-amber-500 rounded-r-2xs" />
+            <span className="w-4 h-2.5 rounded-xs bg-sky-400/25 border-y border-dashed border-sky-400 flex items-center justify-end">
+              <span className="w-1 h-2.5 bg-sky-500 rounded-r-2xs" />
             </span>
-            <span className="font-semibold text-amber-800">Holgura Total</span>
+            <span className="font-semibold text-sky-700">Holgura Total</span>
           </div>
         </div>
 
@@ -812,21 +812,21 @@ export default function GanttChart({
                                 style={{ width: `${slackWidth}px` }}
                                 title={`Holgura Total: +${holgura}d • Fecha límite: ${formatDateDDMMYYYY(item.fecha_limite)}`}
                               >
-                                {/* Barra rayada/translúcida de holgura */}
-                                <div className="w-full h-full bg-amber-400/20 hover:bg-amber-400/30 border-y border-dashed border-amber-500/70 transition-colors flex items-center justify-center relative overflow-hidden">
+                                {/* Barra rayada/translúcida de holgura en celeste */}
+                                <div className="w-full h-full bg-sky-400/20 hover:bg-sky-400/35 border-y border-dashed border-sky-400 transition-colors flex items-center justify-center relative overflow-hidden">
                                   {/* Línea central punteada */}
-                                  <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-b border-dotted border-amber-500/50 pointer-events-none" />
+                                  <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-b border-dotted border-sky-400/70 pointer-events-none" />
                                   {/* Indicador de días de holgura */}
                                   {slackWidth >= 34 && (
-                                    <span className="relative z-1 text-[9px] font-mono font-bold text-amber-800 bg-white/70 px-1 rounded shadow-2xs select-none">
+                                    <span className="relative z-1 text-[9px] font-mono font-bold text-sky-800 bg-white/85 px-1 rounded shadow-2xs select-none">
                                       +{holgura}d
                                     </span>
                                   )}
                                 </div>
 
-                                {/* Marcador de Tope / Fecha Límite (Late Finish) */}
+                                {/* Marcador de Tope / Fecha Límite (Late Finish) en celeste sólido */}
                                 <div
-                                  className="w-1.5 h-7 bg-amber-500 hover:bg-amber-600 rounded-r-md shrink-0 shadow-xs transition-colors z-2"
+                                  className="w-1.5 h-7 bg-sky-500 hover:bg-sky-600 rounded-r-md shrink-0 shadow-xs transition-colors z-2"
                                   title={`Fecha límite sin retrasar el proyecto: ${formatDateDDMMYYYY(item.fecha_limite)}`}
                                 />
                               </div>
@@ -924,19 +924,19 @@ export default function GanttChart({
 
             {/* Detalle de Holgura Total y Fecha Límite */}
             {hoveredTask.item.type === 'leaf' && hoveredTask.cpm && (hoveredTask.cpm.holgura_total ?? 0) > 0 && (
-              <div className="col-span-2 pt-2 mt-1 border-t border-slate-200/70 bg-amber-50/70 -mx-2.5 -mb-2.5 p-2.5 rounded-b-xl flex flex-col gap-1 text-[11px]">
-                <div className="flex items-center justify-between text-amber-900 font-medium">
+              <div className="col-span-2 pt-2 mt-1 border-t border-slate-200/70 bg-sky-50/75 -mx-2.5 -mb-2.5 p-2.5 rounded-b-xl flex flex-col gap-1 text-[11px]">
+                <div className="flex items-center justify-between text-sky-950 font-medium">
                   <span className="flex items-center gap-1.5 text-[10px]">
-                    <span className="w-2 h-2 rounded-xs bg-amber-500 inline-block shrink-0 shadow-2xs" />
+                    <span className="w-2 h-2 rounded-xs bg-sky-500 inline-block shrink-0 shadow-2xs" />
                     Holgura Total (Demora permitida):
                   </span>
-                  <span className="font-bold font-mono text-[11px] text-amber-800">
+                  <span className="font-bold font-mono text-[11px] text-sky-700">
                     +{hoveredTask.cpm.holgura_total}d
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-[10px] text-amber-800/90">
+                <div className="flex items-center justify-between text-[10px] text-sky-800/90">
                   <span>Fecha límite sin retrasar proyecto:</span>
-                  <span className="font-bold font-mono text-amber-950">
+                  <span className="font-bold font-mono text-sky-950">
                     {formatDateDDMMYYYY(hoveredTask.cpm.fecha_limite || hoveredTask.item.fecha_limite)}
                   </span>
                 </div>
