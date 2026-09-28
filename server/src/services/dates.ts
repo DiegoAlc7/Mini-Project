@@ -40,19 +40,25 @@ export function diaProyectoAFecha(
   dia: number,
   soloHabiles: boolean = false
 ): string {
+  if (!fechaInicio) return '';
   const fecha = new Date(fechaInicio + 'T00:00:00');
+  if (isNaN(fecha.getTime())) return '';
+
+  const diaOffset = Math.round(dia);
 
   if (soloHabiles) {
     while (!esDiaHabil(fecha)) {
       fecha.setDate(fecha.getDate() + 1);
     }
-    if (dia === 0) {
+    if (diaOffset <= 0) {
       return formatearFecha(fecha);
     }
-    return formatearFecha(agregarDiasHabiles(fecha, dia));
+    return formatearFecha(agregarDiasHabiles(fecha, diaOffset));
   } else {
     // Días continuos (calendario completo de lunes a domingo)
-    fecha.setDate(fecha.getDate() + Math.round(dia));
+    if (diaOffset !== 0) {
+      fecha.setDate(fecha.getDate() + diaOffset);
+    }
     return formatearFecha(fecha);
   }
 }

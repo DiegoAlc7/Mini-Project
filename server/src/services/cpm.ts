@@ -26,10 +26,11 @@ export function calcularCpm(proyectoId: number, soloHabiles: boolean = false) {
   `, [proyectoId]);
 
   if (actividades.length === 0) {
+    const fIni = proyecto.fecha_inicio ? diaProyectoAFecha(proyecto.fecha_inicio, 0, soloHabiles) : '';
     return {
       duracion_total: 0,
-      fecha_inicio: proyecto.fecha_inicio || '',
-      fecha_fin: proyecto.fecha_inicio || '',
+      fecha_inicio: fIni,
+      fecha_fin: fIni,
       actividades: [],
       ruta_critica: [],
     };
@@ -118,17 +119,21 @@ export function calcularCpm(proyectoId: number, soloHabiles: boolean = false) {
   const fechaInicio = proyecto.fecha_inicio;
   const actividadesRes = orden.map(id => {
     const act = mapa.get(id)!;
+    const diaInicio = Math.floor(act.es);
+    const diaFin = act.ef > act.es ? Math.max(diaInicio, Math.ceil(act.ef) - 1) : diaInicio;
     return {
       ...act,
-      fecha_inicio: diaProyectoAFecha(fechaInicio, act.es, soloHabiles),
-      fecha_fin: diaProyectoAFecha(fechaInicio, act.ef, soloHabiles)
+      fecha_inicio: diaProyectoAFecha(fechaInicio, diaInicio, soloHabiles),
+      fecha_fin: diaProyectoAFecha(fechaInicio, diaFin, soloHabiles)
     };
   });
 
+  const diaFinProyecto = duracionTotal > 0 ? Math.max(0, Math.ceil(duracionTotal) - 1) : 0;
+
   return {
     duracion_total: duracionTotal,
-    fecha_inicio: fechaInicio,
-    fecha_fin: diaProyectoAFecha(fechaInicio, duracionTotal, soloHabiles),
+    fecha_inicio: diaProyectoAFecha(fechaInicio, 0, soloHabiles),
+    fecha_fin: diaProyectoAFecha(fechaInicio, diaFinProyecto, soloHabiles),
     actividades: actividadesRes,
     ruta_critica: actividadesRes.filter(a => a.es_critica).map(a => a.id),
   };

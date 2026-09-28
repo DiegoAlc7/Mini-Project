@@ -103,4 +103,4 @@ export const deleteDependencia = (id: number) => api.delete(`/dependencias/${id}
 
 // === CPM ===
 export const getCpm = (proyectoId: number, soloHabiles: boolean = false) =>
-  api.get<CpmResponse>(`/proyectos/${proyectoId}/cpm?solo_habiles=${soloHabiles}`);
+  api.get<CpmResponse>(`/proyectos/${proyectoId}/cpm?solo_habiles=${soloHabiles}&soloHabiles=${soloHabiles}`);

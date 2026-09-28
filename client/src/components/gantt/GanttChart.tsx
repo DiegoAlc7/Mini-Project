@@ -15,6 +15,8 @@ interface Props {
   proyectoId: number;
   dataVersion?: number;
   isActive?: boolean;
+  soloHabiles?: boolean;
+  onSoloHabilesChange?: (soloHabiles: boolean) => void;
 }
 
 // Elemento para el renderizado de la línea de tiempo
@@ -76,6 +78,8 @@ export default function GanttChart({
   proyectoId,
   dataVersion = 0,
   isActive = true,
+  soloHabiles: propSoloHabiles,
+  onSoloHabilesChange,
 }: Props) {
   const { getMiembro } = useResources();
   const [loading, setLoading] = useState(true);
@@ -86,7 +90,16 @@ export default function GanttChart({
   const [dependencias, setDependencias] = useState<Dependencia[]>([]);
 
   const [colWidth, setColWidth] = useState<number>(44);
-  const [soloHabiles, setSoloHabiles] = useState<boolean>(false);
+  const [localSoloHabiles, setLocalSoloHabiles] = useState<boolean>(false);
+  const soloHabiles = propSoloHabiles !== undefined ? propSoloHabiles : localSoloHabiles;
+
+  const handleSoloHabilesChange = (val: boolean) => {
+    if (onSoloHabilesChange) {
+      onSoloHabilesChange(val);
+    } else {
+      setLocalSoloHabiles(val);
+    }
+  };
 
   // Referencia al contenedor con scroll del diagrama de Gantt
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -323,15 +336,18 @@ export default function GanttChart({
       const diaNum = d.getDate();
       const mesNum = d.getMonth();
       const diaSemana = d.getDay();
+      const y = d.getFullYear();
+      const m = String(mesNum + 1).padStart(2, '0');
+      const day = String(diaNum).padStart(2, '0');
 
       res.push({
         index: i,
         date: d,
-        dateStr: d.toISOString().split('T')[0],
-        formattedShort: `${String(diaNum).padStart(2, '0')}.${String(mesNum + 1).padStart(2, '0')}`,
+        dateStr: `${y}-${m}-${day}`,
+        formattedShort: `${day}.${m}`,
         diaNumero: diaNum,
         diaNombre: nombresDias[diaSemana],
-        mesAno: `${nombresMeses[mesNum]} ${d.getFullYear()}`,
+        mesAno: `${nombresMeses[mesNum]} ${y}`,
         esFinDeSemana: diaSemana === 0 || diaSemana === 6,
       });
     }
@@ -518,18 +534,18 @@ export default function GanttChart({
           {/* Selector de modo calendario */}
           <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
             <button
-              onClick={() => setSoloHabiles(false)}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                !soloHabiles ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-600'
+              onClick={() => handleSoloHabilesChange(false)}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                !soloHabiles ? 'bg-white text-blue-700 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Calendar size={13} />
               <span>Lun a Dom</span>
             </button>
             <button
-              onClick={() => setSoloHabiles(true)}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                soloHabiles ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-600'
+              onClick={() => handleSoloHabilesChange(true)}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                soloHabiles ? 'bg-white text-blue-700 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <span>Solo Hábiles</span>
@@ -697,7 +713,9 @@ export default function GanttChart({
                           <span className="font-semibold text-slate-800">{item.nombre}</span>
                           <span className="text-slate-300 font-normal">|</span>
                           <span className="text-slate-500 font-mono text-[10px] font-normal">
-                            {formatShortDate(item.fecha_inicio)} - {formatShortDate(item.fecha_fin)}
+                            {item.fecha_inicio === item.fecha_fin
+                              ? formatShortDate(item.fecha_inicio)
+                              : `${formatShortDate(item.fecha_inicio)} - ${formatShortDate(item.fecha_fin)}`}
                           </span>
                         </div>
 

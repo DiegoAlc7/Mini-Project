@@ -21,6 +21,15 @@ import { ProjectResourceProvider, useResources } from '../context/ResourceContex
 
 type Tab = 'plan' | 'gantt';
 
+function formatFechaLegible(dStr?: string): string {
+  if (!dStr) return '';
+  const parts = dStr.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) return dStr;
+  const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  const fecha = new Date(parts[0], parts[1] - 1, parts[2]);
+  return `${fecha.getDate()} ${meses[fecha.getMonth()]} ${fecha.getFullYear()}`;
+}
+
 function formatRangoFechas(fechaInicioStr?: string, fechaFinStr?: string): string {
   if (!fechaInicioStr) return '';
 
@@ -73,26 +82,27 @@ function ProyectoContent({
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const { miembros } = useResources();
   const [dataVersion, setDataVersion] = useState(0);
+  const [soloHabiles, setSoloHabiles] = useState<boolean>(false);
   const [cpmData, setCpmData] = useState<CpmResponse | null>(null);
   const [cpmLoading, setCpmLoading] = useState(false);
 
   const fetchCpm = useCallback(() => {
     setCpmLoading(true);
-    getCpm(proyecto.id)
+    getCpm(proyecto.id, soloHabiles)
       .then((data) => setCpmData(data))
       .catch((err) => console.error('Error al cargar métricas CPM en cabecera:', err))
       .finally(() => setCpmLoading(false));
-  }, [proyecto.id]);
+  }, [proyecto.id, soloHabiles]);
 
   useEffect(() => {
     fetchCpm();
-  }, [fetchCpm, dataVersion]);
+  }, [fetchCpm, dataVersion, soloHabiles]);
 
   const handleDataChange = useCallback(() => {
     setDataVersion((v) => v + 1);
   }, []);
 
-  const rangoFechas = useMemo(() => {
+  const infoFechas = useMemo(() => {
     if (!cpmData) return null;
     let inicio = cpmData.fecha_inicio;
     let fin = cpmData.fecha_fin;
@@ -109,7 +119,13 @@ function ProyectoContent({
     }
 
     if (!inicio) return null;
-    return formatRangoFechas(inicio, fin);
+    return {
+      rangoTexto: formatRangoFechas(inicio, fin),
+      inicioLegible: formatFechaLegible(inicio),
+      finLegible: formatFechaLegible(fin),
+      inicio,
+      fin,
+    };
   }, [cpmData]);
 
   return (
@@ -354,19 +370,30 @@ function ProyectoContent({
             </h1>
 
             {/* Píldoras/Badges de Estadísticas */}
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
               {cpmData ? (
                 <>
-                  {rangoFechas && (
-                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs">
+                  {infoFechas && (
+                    <div
+                      className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs"
+                      title={
+                        infoFechas.fin && infoFechas.inicio !== infoFechas.fin
+                          ? `Inicio: ${infoFechas.inicioLegible} • Fin exacto: ${infoFechas.finLegible}`
+                          : `Fecha: ${infoFechas.inicioLegible}`
+                      }
+                    >
                       <Calendar size={13} className="text-slate-400" />
-                      <span>{rangoFechas}</span>
+                      <span>{infoFechas.rangoTexto}</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs">
+                  <div
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs"
+                    title={`Duración: ${cpmData.duracion_total} ${soloHabiles ? 'días hábiles laborables (lunes a viernes)' : 'días calendario continuos'}`}
+                  >
                     <Clock size={13} className="text-slate-400" />
                     <span>
-                      <strong className="font-semibold text-slate-800">{cpmData.duracion_total}</strong> días
+                      <strong className="font-semibold text-slate-800">{cpmData.duracion_total}</strong>{' '}
+                      {soloHabiles ? 'días hábiles' : 'días'}
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs">
@@ -386,6 +413,28 @@ function ProyectoContent({
                       <strong className="font-semibold">{cpmData.ruta_critica.length}</strong>{' '}
                       {cpmData.ruta_critica.length === 1 ? 'tarea crítica' : 'tareas críticas'}
                     </span>
+                  </div>
+
+                  {/* Selector rápido de calendario */}
+                  <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs ml-1">
+                    <button
+                      onClick={() => setSoloHabiles(false)}
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+                        !soloHabiles ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                      title="Calcular cronograma en días continuos calendario (lunes a domingo)"
+                    >
+                      L-D
+                    </button>
+                    <button
+                      onClick={() => setSoloHabiles(true)}
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+                        soloHabiles ? 'bg-white text-blue-700 shadow-2xs font-semibold' : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                      title="Calcular cronograma solo en días hábiles laborables (lunes a viernes)"
+                    >
+                      Hábiles
+                    </button>
                   </div>
                 </>
               ) : (
@@ -409,6 +458,8 @@ function ProyectoContent({
               proyectoId={proyecto.id}
               dataVersion={dataVersion}
               isActive={activeTab === 'gantt'}
+              soloHabiles={soloHabiles}
+              onSoloHabilesChange={setSoloHabiles}
             />
           </div>
         </div>
