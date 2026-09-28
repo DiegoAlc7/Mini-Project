@@ -66,6 +66,15 @@ router.put('/:id', (req: Request, res: Response) => {
       `UPDATE proyecto SET nombre = ?, descripcion = ?, fecha_inicio = ?, actualizado_en = datetime('now') WHERE id = ?`,
       [nombre ?? actual.nombre, descripcion ?? actual.descripcion, fecha_inicio ?? actual.fecha_inicio, id]
     );
+
+    // Si el nombre cambió, sincronizar también el nombre del nodo raíz EDT (nivel 0, padre_id NULL)
+    if (nombre && nombre !== actual.nombre) {
+      run(
+        `UPDATE nodo_edt SET nombre = ? WHERE proyecto_id = ? AND padre_id IS NULL`,
+        [nombre, id]
+      );
+    }
+
     res.json(get('SELECT * FROM proyecto WHERE id = ?', [id]));
   } catch (error) {
     res.status(500).json({ error: 'Error al actualizar proyecto' });

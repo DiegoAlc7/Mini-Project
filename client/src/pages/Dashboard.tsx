@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, FolderOpen } from 'lucide-react';
 import type { Proyecto } from '../types';
-import { getProyectos, createProyecto, deleteProyecto } from '../lib/api';
+import { getProyectos, createProyecto, updateProyecto, deleteProyecto } from '../lib/api';
 import ProyectoCard from '../components/proyecto/ProyectoCard';
 import ProyectoForm from '../components/proyecto/ProyectoForm';
 
@@ -9,6 +9,7 @@ export default function Dashboard() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingProyecto, setEditingProyecto] = useState<Proyecto | null>(null);
 
   const cargar = async () => {
     try {
@@ -21,7 +22,9 @@ export default function Dashboard() {
     }
   };
 
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => {
+    cargar();
+  }, []);
 
   const handleCreate = async (data: { nombre: string; descripcion: string; fecha_inicio: string }) => {
     try {
@@ -30,6 +33,17 @@ export default function Dashboard() {
       await cargar();
     } catch (err: any) {
       alert(err.response?.data?.error || 'Error al crear proyecto');
+    }
+  };
+
+  const handleUpdate = async (data: { nombre: string; descripcion: string; fecha_inicio: string }) => {
+    if (!editingProyecto) return;
+    try {
+      await updateProyecto(editingProyecto.id, data);
+      setEditingProyecto(null);
+      await cargar();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Error al actualizar proyecto');
     }
   };
 
@@ -68,13 +82,30 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {proyectos.map(p => (
-              <ProyectoCard key={p.id} proyecto={p} onDelete={handleDelete} />
+            {proyectos.map((p) => (
+              <ProyectoCard
+                key={p.id}
+                proyecto={p}
+                onEdit={(proj) => setEditingProyecto(proj)}
+                onDelete={handleDelete}
+              />
             ))}
           </div>
         )}
 
         {showForm && <ProyectoForm onSubmit={handleCreate} onClose={() => setShowForm(false)} />}
+
+        {editingProyecto && (
+          <ProyectoForm
+            initial={{
+              nombre: editingProyecto.nombre,
+              descripcion: editingProyecto.descripcion || '',
+              fecha_inicio: editingProyecto.fecha_inicio,
+            }}
+            onSubmit={handleUpdate}
+            onClose={() => setEditingProyecto(null)}
+          />
+        )}
       </div>
     </div>
   );

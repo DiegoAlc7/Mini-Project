@@ -1,22 +1,23 @@
 import { useNavigate } from 'react-router-dom';
-import { Trash2, Calendar, FolderTree, ListChecks } from 'lucide-react';
+import { Trash2, Calendar, FolderTree, ListChecks, Pencil } from 'lucide-react';
 import type { Proyecto } from '../../types';
 
 interface Props {
   proyecto: Proyecto;
+  onEdit: (proyecto: Proyecto) => void;
   onDelete: (id: number) => void;
 }
 
-export default function ProyectoCard({ proyecto, onDelete }: Props) {
+export default function ProyectoCard({ proyecto, onEdit, onDelete }: Props) {
   const navigate = useNavigate();
 
   return (
     <div
-      className="bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer p-5 flex flex-col justify-between group"
+      className="bg-white border border-slate-200 rounded-xl shadow-xs hover:shadow-md transition-shadow cursor-pointer p-5 flex flex-col justify-between group"
       onClick={() => navigate(`/proyecto/${proyecto.id}`)}
     >
       <div>
-        {/* Cabecera de la tarjeta: Título y Acción destructiva reubicada a la derecha */}
+        {/* Cabecera de la tarjeta: Título y Acciones reubicadas a la derecha */}
         <div className="flex items-start justify-between gap-3 mb-2">
           <h3
             className="text-base font-semibold text-slate-800 truncate flex-1 group-hover:text-blue-600 transition-colors"
@@ -24,16 +25,28 @@ export default function ProyectoCard({ proyecto, onDelete }: Props) {
           >
             {proyecto.nombre}
           </h3>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (confirm('¿Eliminar este proyecto y todos sus datos?')) onDelete(proyecto.id);
-            }}
-            className="p-1.5 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer shrink-0 -mt-1 -mr-1"
-            title="Eliminar proyecto"
-          >
-            <Trash2 size={16} />
-          </button>
+          <div className="flex items-center gap-0.5 shrink-0 -mt-1 -mr-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(proyecto);
+              }}
+              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+              title="Editar proyecto (nombre, descripción, fecha de inicio)"
+            >
+              <Pencil size={15} />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (confirm('¿Eliminar este proyecto y todos sus datos?')) onDelete(proyecto.id);
+              }}
+              className="p-1.5 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+              title="Eliminar proyecto"
+            >
+              <Trash2 size={15} />
+            </button>
+          </div>
         </div>
 
         {/* Descripción */}

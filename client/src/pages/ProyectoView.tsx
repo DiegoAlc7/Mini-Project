@@ -11,11 +11,13 @@ import {
   Clock,
   CheckSquare,
   ChevronRight,
+  Pencil,
 } from 'lucide-react';
 import type { Proyecto, CpmResponse } from '../types';
-import { getProyecto, getCpm } from '../lib/api';
+import { getProyecto, getCpm, updateProyecto } from '../lib/api';
 import TreeGrid from '../components/treegrid/TreeGrid';
 import GanttChart from '../components/gantt/GanttChart';
+import ProyectoForm from '../components/proyecto/ProyectoForm';
 import TeamManagementModal from '../components/team/TeamManagementModal';
 import { ProjectResourceProvider, useResources } from '../context/ResourceContext';
 
@@ -70,16 +72,19 @@ function formatRangoFechas(fechaInicioStr?: string, fechaFinStr?: string): strin
 
 function ProyectoContent({
   proyecto,
+  onProyectoUpdate,
   activeTab,
   setActiveTab,
 }: {
   proyecto: Proyecto;
+  onProyectoUpdate: (p: Proyecto) => void;
   activeTab: Tab;
   setActiveTab: (tab: Tab) => void;
 }) {
   const navigate = useNavigate();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const { miembros } = useResources();
   const [dataVersion, setDataVersion] = useState(0);
   const [soloHabiles, setSoloHabiles] = useState<boolean>(false);
@@ -101,6 +106,18 @@ function ProyectoContent({
   const handleDataChange = useCallback(() => {
     setDataVersion((v) => v + 1);
   }, []);
+
+  const handleProyectoEdit = async (data: { nombre: string; descripcion: string; fecha_inicio: string }) => {
+    try {
+      const updated = await updateProyecto(proyecto.id, data);
+      onProyectoUpdate(updated);
+      setIsEditModalOpen(false);
+      handleDataChange();
+      fetchCpm();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Error al actualizar proyecto');
+    }
+  };
 
   const infoFechas = useMemo(() => {
     if (!cpmData) return null;
@@ -360,14 +377,23 @@ function ProyectoContent({
             </nav>
           </div>
 
-          {/* Fila principal: Título H1 + Píldoras de Estadísticas */}
+          {/* Fila principal: Título H1 + Botón de Edición + Píldoras de Estadísticas */}
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <h1
-              className="text-2xl font-bold text-slate-800 tracking-tight truncate max-w-2xl lg:max-w-3xl"
-              title={proyecto.nombre}
-            >
-              {proyecto.nombre}
-            </h1>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <h1
+                className="text-2xl font-bold text-slate-800 tracking-tight truncate max-w-xl lg:max-w-2xl"
+                title={proyecto.nombre}
+              >
+                {proyecto.nombre}
+              </h1>
+              <button
+                onClick={() => setIsEditModalOpen(true)}
+                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer shrink-0"
+                title="Editar información del proyecto (nombre, descripción, fecha de inicio)"
+              >
+                <Pencil size={17} />
+              </button>
+            </div>
 
             {/* Píldoras/Badges de Estadísticas */}
             <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
@@ -414,28 +440,6 @@ function ProyectoContent({
                       {cpmData.ruta_critica.length === 1 ? 'tarea crítica' : 'tareas críticas'}
                     </span>
                   </div>
-
-                  {/* Selector rápido de calendario */}
-                  <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs ml-1">
-                    <button
-                      onClick={() => setSoloHabiles(false)}
-                      className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
-                        !soloHabiles ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'text-slate-500 hover:text-slate-700'
-                      }`}
-                      title="Calcular cronograma en días continuos calendario (lunes a domingo)"
-                    >
-                      L-D
-                    </button>
-                    <button
-                      onClick={() => setSoloHabiles(true)}
-                      className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
-                        soloHabiles ? 'bg-white text-blue-700 shadow-2xs font-semibold' : 'text-slate-500 hover:text-slate-700'
-                      }`}
-                      title="Calcular cronograma solo en días hábiles laborables (lunes a viernes)"
-                    >
-                      Hábiles
-                    </button>
-                  </div>
                 </>
               ) : (
                 cpmLoading && (
@@ -451,7 +455,7 @@ function ProyectoContent({
         {/* Envoltorio de la Vista que ocupa estrictamente el espacio restante con pestañas persistentes */}
         <div className="flex-1 min-h-0 w-full p-3.5 md:p-5 flex flex-col overflow-hidden">
           <div className={`flex-1 min-h-0 overflow-y-auto ${activeTab === 'plan' ? 'block' : 'hidden'}`}>
-            <TreeGrid proyectoId={proyecto.id} onDataChange={handleDataChange} />
+            <TreeGrid proyectoId={proyecto.id} onDataChange={handleDataChange} dataVersion={dataVersion} />
           </div>
           <div className={`flex-1 min-h-0 flex flex-col ${activeTab === 'gantt' ? 'flex' : 'hidden'}`}>
             <GanttChart
@@ -470,6 +474,19 @@ function ProyectoContent({
         isOpen={isTeamModalOpen}
         onClose={() => setIsTeamModalOpen(false)}
       />
+
+      {/* Modal de Edición de Proyecto */}
+      {isEditModalOpen && (
+        <ProyectoForm
+          initial={{
+            nombre: proyecto.nombre,
+            descripcion: proyecto.descripcion || '',
+            fecha_inicio: proyecto.fecha_inicio,
+          }}
+          onSubmit={handleProyectoEdit}
+          onClose={() => setIsEditModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -504,6 +521,7 @@ export default function ProyectoView() {
     <ProjectResourceProvider proyectoId={proyecto.id} proyectoNombre={proyecto.nombre}>
       <ProyectoContent
         proyecto={proyecto}
+        onProyectoUpdate={setProyecto}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
       />

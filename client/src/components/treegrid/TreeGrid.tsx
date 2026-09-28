@@ -36,6 +36,7 @@ import { useResources } from '../../context/ResourceContext';
 interface Props {
   proyectoId: number;
   onDataChange?: () => void;
+  dataVersion?: number;
 }
 
 interface ModalPertState {
@@ -46,7 +47,7 @@ interface ModalPertState {
   pesimista: string;
 }
 
-export default function TreeGrid({ proyectoId, onDataChange }: Props) {
+export default function TreeGrid({ proyectoId, onDataChange, dataVersion = 0 }: Props) {
   const { getMiembro } = useResources();
   const [arbol, setArbol] = useState<NodoEdt[]>([]);
   const [loading, setLoading] = useState(true);
@@ -215,7 +216,7 @@ export default function TreeGrid({ proyectoId, onDataChange }: Props) {
 
   useEffect(() => {
     cargar();
-  }, [cargar]);
+  }, [cargar, dataVersion]);
 
   // Lista aplanada de todas las actividades hoja para el selector de predecesoras
   const todasLasHojas = useMemo(() => {
