@@ -9,6 +9,9 @@ import {
   ZoomOut,
   Calendar,
   Clock,
+  Folder,
+  FileText,
+  LayoutList,
 } from 'lucide-react';
 import { useResources } from '../../context/ResourceContext';
 
@@ -103,6 +106,8 @@ export default function GanttChart({
   const [dependencias, setDependencias] = useState<Dependencia[]>([]);
 
   const [colWidth, setColWidth] = useState<number>(44);
+  const [showTaskTable, setShowTaskTable] = useState<boolean>(true);
+  const leftPanelWidth = showTaskTable ? 360 : 0;
   const [localSoloHabiles, setLocalSoloHabiles] = useState<boolean>(false);
   const soloHabiles = propSoloHabiles !== undefined ? propSoloHabiles : localSoloHabiles;
 
@@ -424,7 +429,7 @@ export default function GanttChart({
 
     // Delimitar X dentro de la ventana visible del Gantt para evitar solapar el panel lateral izquierdo
     const containerRect = scrollContainerRef.current?.getBoundingClientRect();
-    const leftBound = containerRect ? containerRect.left : 0;
+    const leftBound = containerRect ? containerRect.left + leftPanelWidth : 0;
     const rightBound = containerRect ? containerRect.right : window.innerWidth;
     const tooltipHalfWidth = 165; // Tarjeta w-80 (320px) -> mitad 160px + margen de seguridad
 
@@ -579,6 +584,20 @@ export default function GanttChart({
             </button>
           </div>
 
+          {/* Alternar Panel de Tareas Izquierdo */}
+          <button
+            onClick={() => setShowTaskTable((v) => !v)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer border ${
+              showTaskTable
+                ? 'bg-white text-blue-700 border-blue-200 shadow-2xs font-semibold'
+                : 'bg-slate-100 text-slate-600 border-slate-200 hover:text-slate-900 hover:bg-slate-200/70'
+            }`}
+            title={showTaskTable ? 'Ocultar panel lateral de tareas' : 'Mostrar panel lateral de tareas'}
+          >
+            <LayoutList size={13} />
+            <span>{showTaskTable ? 'Panel EDT' : 'Ver EDT'}</span>
+          </button>
+
           {/* Zoom */}
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
             <button
@@ -610,50 +629,70 @@ export default function GanttChart({
           }}
           className="flex-1 min-h-0 overflow-auto relative select-none w-full h-full"
         >
-          <div style={{ width: `${Math.max(1100, diasInfo.length * colWidth + 160)}px` }} className="relative min-h-full">
-            {/* Fila superior de las fechas con position: sticky; top: 0; z-index: 30; y fondo 100% opaco */}
+          <div style={{ width: `${leftPanelWidth + Math.max(900, diasInfo.length * colWidth + 80)}px` }} className="relative min-h-full">
+            {/* Fila superior de encabezados: sticky top-0, z-30 */}
             <div
-              className="sticky top-0 z-30 bg-white flex flex-col border-b border-slate-300 shadow-xs select-none"
+              className="sticky top-0 z-30 bg-white flex border-b border-slate-300 shadow-xs select-none"
               style={{ height: `${headerTotalHeight}px` }}
             >
-              {/* Fila 1: Semanas / Meses con fondo sólido */}
-              <div className="bg-slate-100 border-b border-slate-200 flex" style={{ height: `${headerHeightTop}px` }}>
-                {gruposEncabezado.map((grupo) => (
-                  <div
-                    key={grupo.semanaKey}
-                    className="border-r border-slate-200 px-2 flex items-center text-[10px] font-semibold text-slate-700 shrink-0 truncate bg-slate-100"
-                    style={{ width: `${grupo.diasCount * colWidth}px` }}
-                  >
-                    <span className="truncate font-mono text-[10px]">{grupo.titulo}</span>
+              {/* Encabezado de la Tabla de Tareas (Sticky top-0 Y left-0 -> z-40) */}
+              {showTaskTable && (
+                <div
+                  className="sticky left-0 z-40 bg-slate-100 border-r border-slate-300 flex flex-col justify-between px-3 py-1.5 shrink-0 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.1)]"
+                  style={{ width: `${leftPanelWidth}px`, height: `${headerTotalHeight}px` }}
+                >
+                  <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider h-full">
+                    <span className="w-16 shrink-0 font-mono">EDT</span>
+                    <span className="flex-1 px-2 text-slate-700">Tarea / Paquete</span>
+                    <span className="w-12 text-right shrink-0 font-mono">Dur.</span>
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
 
-              {/* Fila 2: Días con fondo sólido */}
-              <div className="bg-slate-50 flex text-center" style={{ height: `${headerHeightBottom}px` }}>
-                {diasInfo.map((dia) => (
-                  <div
-                    key={dia.index}
-                    className={`border-r border-slate-200/80 flex flex-col justify-center text-[9px] shrink-0 ${
-                      dia.esFinDeSemana
-                        ? 'bg-slate-200 text-slate-500 font-normal'
-                        : 'bg-slate-50 text-slate-700 font-medium'
-                    }`}
-                    style={{ width: `${colWidth}px` }}
-                  >
-                    <span className="text-[8px] uppercase leading-none opacity-80 font-mono">{dia.diaNombre}</span>
-                    <span className="font-mono text-[10px] leading-tight font-semibold text-slate-800">
-                      {dia.diaNumero}
-                    </span>
-                  </div>
-                ))}
+              {/* Encabezado del Calendario (Semanas y Días) */}
+              <div className="flex flex-col flex-1 overflow-hidden">
+                {/* Fila 1: Semanas / Meses */}
+                <div className="bg-slate-100 border-b border-slate-200 flex" style={{ height: `${headerHeightTop}px` }}>
+                  {gruposEncabezado.map((grupo) => (
+                    <div
+                      key={grupo.semanaKey}
+                      className="border-r border-slate-200 px-2 flex items-center text-[10px] font-semibold text-slate-700 shrink-0 truncate bg-slate-100"
+                      style={{ width: `${grupo.diasCount * colWidth}px` }}
+                    >
+                      <span className="truncate font-mono text-[10px]">{grupo.titulo}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Fila 2: Días */}
+                <div className="bg-slate-50 flex text-center" style={{ height: `${headerHeightBottom}px` }}>
+                  {diasInfo.map((dia) => (
+                    <div
+                      key={dia.index}
+                      className={`border-r border-slate-200/80 flex flex-col justify-center text-[9px] shrink-0 ${
+                        dia.esFinDeSemana
+                          ? 'bg-slate-200 text-slate-500 font-normal'
+                          : 'bg-slate-50 text-slate-700 font-medium'
+                      }`}
+                      style={{ width: `${colWidth}px` }}
+                    >
+                      <span className="text-[8px] uppercase leading-none opacity-80 font-mono">{dia.diaNombre}</span>
+                      <span className="font-mono text-[10px] leading-tight font-semibold text-slate-800">
+                        {dia.diaNumero}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Área de Filas de la Línea de Tiempo */}
+            {/* Área de Filas del Diagrama */}
             <div className="relative divide-y divide-slate-100">
-              {/* REGLA 2: Cuadrícula de Fondo con Sombreado de Fines de Semana (Bandas Verticales) */}
-              <div className="absolute inset-0 flex pointer-events-none z-0">
+              {/* Cuadrícula de Fondo con Sombreado de Fines de Semana en la Línea de Tiempo */}
+              <div
+                className="absolute inset-0 flex pointer-events-none z-0"
+                style={{ left: `${leftPanelWidth}px` }}
+              >
                 {diasInfo.map((dia) => (
                   <div
                     key={dia.index}
@@ -665,11 +704,12 @@ export default function GanttChart({
                 ))}
               </div>
 
-              {/* REGLA 3: Líneas de Dependencia Neutras (Linear/Asana Style, stroke-slate-400 opacity-70) */}
+              {/* Conectores Ortogonales SVG */}
               <svg
-                className="absolute inset-0 pointer-events-none w-full h-full z-1"
+                className="absolute inset-0 pointer-events-none z-1"
                 style={{
-                  width: '100%',
+                  left: `${leftPanelWidth}px`,
+                  width: `${diasInfo.length * colWidth}px`,
                   height: `${filasGantt.length * rowHeight}px`,
                 }}
               >
@@ -702,14 +742,13 @@ export default function GanttChart({
                 ))}
               </svg>
 
-              {/* Filas del Diagrama de Gantt */}
+              {/* Filas del Diagrama de Gantt (Panel Izquierdo + Barra de Tiempo) */}
               {filasGantt.map((item) => {
                 const isPhase = item.type === 'phase';
                 const barLeft = Math.round(item.es * colWidth);
                 const barWidth = Math.max(16, Math.round((item.ef - item.es) * colWidth));
                 const isCritical = Boolean(item.es_critica);
 
-                // Paleta de Barras de Tarea: ROJO para ruta crítica HT=0, AZUL para no críticas
                 const barBgClass = isCritical
                   ? 'bg-red-500 hover:bg-red-600 shadow-red-200/50'
                   : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200/50';
@@ -720,147 +759,157 @@ export default function GanttChart({
                     className="relative hover:bg-slate-50/50 transition-colors flex items-center"
                     style={{ height: `${rowHeight}px` }}
                   >
-                    {/* Paquetes de Trabajo: Nodos Resumen como Techo / Corchete Negro Sólido 7px con Patas */}
-                    {isPhase ? (
+                    {/* PANEL IZQUIERDO: Celda de Tarea Fija (Sticky Left) */}
+                    {showTaskTable && (
                       <div
-                        onMouseEnter={(e) => handleTaskMouseEnter(e, item)}
-                        onMouseLeave={handleTaskMouseLeave}
-                        className="absolute cursor-pointer group/phase z-2"
-                        style={{
-                          left: `${barLeft}px`,
-                          top: '4px',
-                          width: `${Math.max(28, barWidth)}px`,
-                        }}
+                        className={`sticky left-0 z-20 flex items-center justify-between border-r border-slate-300 shrink-0 px-3 select-none shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)] ${
+                          isPhase
+                            ? 'bg-slate-100/95 font-bold text-slate-900 border-b border-slate-200'
+                            : isCritical
+                            ? 'bg-white hover:bg-red-50/40 border-b border-slate-100'
+                            : 'bg-white hover:bg-slate-50 border-b border-slate-100'
+                        }`}
+                        style={{ width: `${leftPanelWidth}px`, height: `${rowHeight}px` }}
                       >
-                        {/* Título y Fechas del Paquete de Trabajo flotando sobre la barra */}
-                        <div className="text-[11px] font-bold text-slate-800 whitespace-nowrap flex items-center gap-1.5 group-hover/phase:text-black transition-colors select-none mb-1.5 leading-none">
-                          <span className="font-mono text-slate-900 font-bold bg-slate-100 px-1.5 py-0.5 rounded text-[10px] border border-slate-300">
-                            {item.codigo}
-                          </span>
-                          <span className="font-semibold text-slate-900">{item.nombre}</span>
-                          <span className="text-[9.5px] font-semibold text-slate-500">
-                            (Paquete de Trabajo)
-                          </span>
-                          <span className="text-slate-300 font-normal">|</span>
-                          <span className="text-slate-600 font-mono text-[10px] font-medium">
-                            {item.fecha_inicio === item.fecha_fin
-                              ? formatShortDate(item.fecha_inicio)
-                              : `${formatShortDate(item.fecha_inicio)} - ${formatShortDate(item.fecha_fin)}`}
+                        {/* Código EDT */}
+                        <span
+                          className={`w-16 shrink-0 font-mono text-[11px] ${
+                            isPhase ? 'text-slate-900 font-bold' : 'text-blue-600 font-medium'
+                          }`}
+                        >
+                          {item.codigo}
+                        </span>
+
+                        {/* Ícono y Nombre con Indentación */}
+                        <div
+                          className={`flex items-center gap-1.5 flex-1 min-w-0 pr-2 ${
+                            isPhase ? 'pl-0' : 'pl-3'
+                          }`}
+                        >
+                          {isPhase ? (
+                            <Folder size={13} className="text-slate-900 shrink-0" />
+                          ) : (
+                            <FileText
+                              size={12}
+                              className={isCritical ? 'text-red-500 shrink-0' : 'text-slate-400 shrink-0'}
+                            />
+                          )}
+                          <span
+                            className={`truncate text-xs ${
+                              isPhase ? 'font-bold text-slate-900' : 'font-medium text-slate-700'
+                            }`}
+                            title={item.nombre}
+                          >
+                            {item.nombre}
                           </span>
                         </div>
 
-                        {/* Corchete Sólido Negro (7px) simulando techo clásico con patas */}
+                        {/* Duración */}
+                        <span
+                          className={`w-12 text-right shrink-0 font-mono text-[11px] ${
+                            isPhase
+                              ? 'font-bold text-slate-900'
+                              : isCritical
+                              ? 'font-semibold text-red-600'
+                              : 'text-slate-500'
+                          }`}
+                        >
+                          {isPhase ? `∑ ${item.duracion}d` : `${item.duracion}d`}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* ÁREA DE LA LÍNEA DE TIEMPO (Timeline Area) */}
+                    <div
+                      className="relative h-full flex items-center shrink-0"
+                      style={{ width: `${diasInfo.length * colWidth + 80}px` }}
+                    >
+                      {/* Paquetes de Trabajo: Corchete Negro Sólido */}
+                      {isPhase ? (
                         <div
-                          className="relative rounded-xs transition-colors shadow-xs bg-slate-900 group-hover/phase:bg-black"
+                          onMouseEnter={(e) => handleTaskMouseEnter(e, item)}
+                          onMouseLeave={handleTaskMouseLeave}
+                          className="absolute cursor-pointer group/phase z-2"
                           style={{
+                            left: `${barLeft}px`,
+                            top: '12px',
                             width: `${Math.max(28, barWidth)}px`,
-                            height: '7px',
                           }}
                         >
-                          {/* Extremo izquierdo apuntando hacia abajo */}
-                          <div
-                            className="absolute left-0 top-0 w-1 h-3.5 rounded-b-xs transition-colors bg-slate-900 group-hover/phase:bg-black"
-                          />
-                          {/* Extremo derecho apuntando hacia abajo */}
-                          <div
-                            className="absolute right-0 top-0 w-1 h-3.5 rounded-b-xs transition-colors bg-slate-900 group-hover/phase:bg-black"
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      /* REGLA 1: Tareas Hoja con Etiquetas Dinámicas y Barra de Holgura Total */
-                      (() => {
-                        const isSmallBar = barWidth < 110;
-                        const holgura = item.holgura_total ?? 0;
-                        const slackWidth = holgura > 0 ? Math.round(holgura * colWidth) : 0;
-                        const hasSlack = slackWidth > 0;
+                          {/* Fechas discretas sobre el corchete */}
+                          <div className="text-[10px] font-mono text-slate-600 font-medium whitespace-nowrap mb-1 leading-none select-none">
+                            {formatShortDate(item.fecha_inicio)} - {formatShortDate(item.fecha_fin)}
+                          </div>
 
-                        return (
+                          {/* Corchete Sólido Negro (7px) con patas */}
                           <div
-                            className="flex items-center absolute z-2"
+                            className="relative rounded-xs transition-colors shadow-xs bg-slate-900 group-hover/phase:bg-black"
                             style={{
-                              left: `${barLeft}px`,
-                              top: '8px',
+                              width: `${Math.max(28, barWidth)}px`,
+                              height: '7px',
                             }}
                           >
-                            {/* Barra de la Tarea */}
-                            <div
-                              onMouseEnter={(e) => handleTaskMouseEnter(e, item)}
-                              onMouseLeave={handleTaskMouseLeave}
-                              className={`h-7 shadow-xs flex items-center px-2 text-[11px] font-medium text-white transition-all cursor-pointer ${barBgClass} hover:brightness-105 hover:ring-2 hover:ring-offset-1 ${
-                                isCritical ? 'hover:ring-red-400' : 'hover:ring-blue-400'
-                              } ${isSmallBar ? 'justify-center' : 'justify-between'} ${
-                                hasSlack ? 'rounded-l-md rounded-r-none border-r border-black/15' : 'rounded-md'
-                              }`}
-                              style={{ width: `${barWidth}px` }}
-                            >
-                              {isSmallBar ? (
-                                /* Dentro de la barra pequeña: ÚNICAMENTE código EDT o duración en días */
-                                <span className="text-[10px] font-mono font-bold text-white select-none">
-                                  {barWidth < 45 ? `${item.duracion}d` : item.codigo}
-                                </span>
-                              ) : (
-                                /* Barra suficientemente ancha: código, título y duración dentro */
-                                <>
-                                  <div className="truncate pr-1 font-semibold flex items-center gap-1.5 min-w-0">
-                                    <span className="text-[10px] font-mono font-medium opacity-90 shrink-0">
-                                      {item.codigo}
-                                    </span>
-                                    <span className="truncate">{item.nombre}</span>
-                                  </div>
-                                  <span className="text-[10px] font-mono opacity-90 shrink-0 ml-1">
-                                    {item.duracion}d
-                                  </span>
-                                </>
-                              )}
-                            </div>
+                            <div className="absolute left-0 top-0 w-1 h-3.5 rounded-b-xs bg-slate-900 group-hover/phase:bg-black" />
+                            <div className="absolute right-0 top-0 w-1 h-3.5 rounded-b-xs bg-slate-900 group-hover/phase:bg-black" />
+                          </div>
+                        </div>
+                      ) : (
+                        /* Actividades: Barra Ejecutable limpia con holgura */
+                        (() => {
+                          const holgura = item.holgura_total ?? 0;
+                          const slackWidth = holgura > 0 ? Math.round(holgura * colWidth) : 0;
+                          const hasSlack = slackWidth > 0;
 
-                            {/* Barra de Holgura Total (Slack / Float) hasta la Fecha Límite */}
-                            {hasSlack && (
+                          return (
+                            <div
+                              className="flex items-center absolute z-2"
+                              style={{
+                                left: `${barLeft}px`,
+                                top: '8px',
+                              }}
+                            >
+                              {/* Barra de la Tarea (limpia con código y días) */}
                               <div
                                 onMouseEnter={(e) => handleTaskMouseEnter(e, item)}
                                 onMouseLeave={handleTaskMouseLeave}
-                                className="h-7 flex items-center relative cursor-pointer group/slack"
-                                style={{ width: `${slackWidth}px` }}
-                                title={`Fecha límite: ${formatDateDDMMYYYY(item.fecha_limite)}`}
+                                className={`h-7 shadow-xs flex items-center justify-center px-2 text-[10px] font-mono font-bold text-white transition-all cursor-pointer ${barBgClass} hover:brightness-105 hover:ring-2 hover:ring-offset-1 ${
+                                  isCritical ? 'hover:ring-red-400' : 'hover:ring-blue-400'
+                                } ${
+                                  hasSlack ? 'rounded-l-md rounded-r-none border-r border-black/15' : 'rounded-md'
+                                }`}
+                                style={{ width: `${barWidth}px` }}
                               >
-                                {/* Barra translúcida del mismo color azul pero tenue y menos visible */}
-                                <div className="w-full h-full bg-blue-500/10 hover:bg-blue-500/20 border-y border-dashed border-blue-400/40 transition-colors flex items-center justify-center relative overflow-hidden">
-                                  {/* Línea central punteada sutil */}
-                                  <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-b border-dotted border-blue-400/35 pointer-events-none" />
-                                  {/* Indicador discreto de días de holgura */}
-                                  {slackWidth >= 34 && (
-                                    <span className="relative z-1 text-[9px] font-mono font-medium text-blue-700/80 bg-white/75 px-1 rounded shadow-2xs select-none">
-                                      +{holgura}d
-                                    </span>
-                                  )}
-                                </div>
-
-                                {/* Marcador de Tope / Fecha Límite (Late Finish) sutil */}
-                                <div
-                                  className="w-1 h-5 bg-blue-400/70 hover:bg-blue-500 rounded-r-xs shrink-0 shadow-2xs transition-colors z-2"
-                                  title={`Fecha límite sin retrasar el proyecto: ${formatDateDDMMYYYY(item.fecha_limite)}`}
-                                />
+                                {barWidth >= 50 ? `${item.codigo} (${item.duracion}d)` : `${item.duracion}d`}
                               </div>
-                            )}
 
-                            {/* REGLA 1: Si la barra es pequeña, saca el texto del nombre hacia el exterior derecho */}
-                            {isSmallBar && (
-                              <span
-                                onMouseEnter={(e) => handleTaskMouseEnter(e, item)}
-                                onMouseLeave={handleTaskMouseLeave}
-                                className="text-xs font-semibold text-slate-700 ml-2 whitespace-nowrap cursor-pointer hover:text-slate-900 transition-colors select-none flex items-center gap-1"
-                              >
-                                <span>{item.nombre}</span>
-                                <span className="text-[10px] text-slate-400 font-mono font-normal">
-                                  ({item.duracion}d)
-                                </span>
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })()
-                    )}
+                              {/* Barra de Holgura Total */}
+                              {hasSlack && (
+                                <div
+                                  onMouseEnter={(e) => handleTaskMouseEnter(e, item)}
+                                  onMouseLeave={handleTaskMouseLeave}
+                                  className="h-7 flex items-center relative cursor-pointer group/slack"
+                                  style={{ width: `${slackWidth}px` }}
+                                  title={`Fecha límite: ${formatDateDDMMYYYY(item.fecha_limite)}`}
+                                >
+                                  <div className="w-full h-full bg-blue-500/10 hover:bg-blue-500/20 border-y border-dashed border-blue-400/40 transition-colors flex items-center justify-center relative overflow-hidden">
+                                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-b border-dotted border-blue-400/35 pointer-events-none" />
+                                    {slackWidth >= 30 && (
+                                      <span className="relative z-1 text-[9px] font-mono font-medium text-blue-700/80 bg-white/75 px-1 rounded shadow-2xs select-none">
+                                        +{holgura}d
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div
+                                    className="w-1 h-5 bg-blue-400/70 hover:bg-blue-500 rounded-r-xs shrink-0 shadow-2xs transition-colors z-2"
+                                    title={`Fecha límite sin retrasar el proyecto: ${formatDateDDMMYYYY(item.fecha_limite)}`}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()
+                      )}
+                    </div>
                   </div>
                 );
               })}
