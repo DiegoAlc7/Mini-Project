@@ -583,10 +583,19 @@ export default function TreeGrid({ proyectoId, onDataChange, dataVersion = 0 }: 
   const renderInlineAddRow = (padre: NodoEdt) => {
     const isAdding = inlineAddingPadreId === padre.id;
     const isPadreRoot = padre.nivel === 0 || padre.padre_id === null;
+    const isPadreFase = padre.nivel === 1;
     const nivelVisual = isPadreRoot ? 0 : Math.max(0, padre.nivel - 1) + 1;
     const paddingLeft = nivelVisual * 20 + 8;
-    const label = isPadreRoot ? 'Añadir fase' : 'Añadir tarea';
-    const placeholder = isPadreRoot ? 'Nombre de la nueva fase...' : 'Nombre de la nueva tarea...';
+    const label = isPadreRoot
+      ? 'Añadir fase'
+      : isPadreFase
+      ? 'Añadir paquete de trabajo'
+      : 'Añadir actividad';
+    const placeholder = isPadreRoot
+      ? 'Nombre de la nueva fase...'
+      : isPadreFase
+      ? 'Nombre del nuevo paquete de trabajo...'
+      : 'Nombre de la nueva actividad...';
 
     if (isAdding) {
       return (
@@ -797,8 +806,14 @@ export default function TreeGrid({ proyectoId, onDataChange, dataVersion = 0 }: 
                   )}
 
                   {hasChildren && !isRoot && (
-                    <span className="text-xs bg-yellow-100 text-yellow-800 font-medium px-2 py-0.5 rounded shrink-0 self-center leading-tight">
-                      Fase
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded shrink-0 self-center leading-tight ${
+                        nodo.nivel === 1
+                          ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                          : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                      }`}
+                    >
+                      {nodo.nivel === 1 ? 'Fase' : 'Paquete de Trabajo'}
                     </span>
                   )}
 
@@ -1092,8 +1107,14 @@ export default function TreeGrid({ proyectoId, onDataChange, dataVersion = 0 }: 
               }}
               className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100 flex items-center gap-2 cursor-pointer"
             >
-              <Plus size={13} className="text-emerald-600" />
-              <span>Añadir subtarea</span>
+              <Plus size={13} className="text-emerald-600 shrink-0" />
+              <span>
+                {kebabMenu.nodo.nivel === 0
+                  ? 'Añadir fase'
+                  : kebabMenu.nodo.nivel === 1
+                  ? 'Añadir paquete'
+                  : 'Añadir actividad'}
+              </span>
             </button>
 
             {/* Opción Eliminar: No disponible para el nodo raíz */}

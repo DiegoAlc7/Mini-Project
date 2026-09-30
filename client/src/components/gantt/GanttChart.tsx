@@ -727,12 +727,15 @@ export default function GanttChart({
                           width: `${Math.max(28, barWidth)}px`,
                         }}
                       >
-                        {/* Título y Fechas de la Fase flotando sobre la barra */}
+                        {/* Título y Fechas de la Fase / Paquete flotando sobre la barra */}
                         <div className="text-[11px] font-bold text-slate-700 whitespace-nowrap flex items-center gap-1.5 group-hover/phase:text-slate-900 transition-colors select-none mb-1.5 leading-none">
                           <span className="font-mono text-slate-800 font-bold bg-slate-100 px-1 py-0.5 rounded text-[10px] border border-slate-200">
                             {item.codigo}
                           </span>
                           <span className="font-semibold text-slate-800">{item.nombre}</span>
+                          <span className="text-[9.5px] font-semibold text-slate-400">
+                            ({item.nivel === 1 ? 'Fase' : 'Paquete'})
+                          </span>
                           <span className="text-slate-300 font-normal">|</span>
                           <span className="text-slate-500 font-mono text-[10px] font-normal">
                             {item.fecha_inicio === item.fecha_fin
@@ -741,18 +744,34 @@ export default function GanttChart({
                           </span>
                         </div>
 
-                        {/* Barra sólida muy delgada (7px) en bg-slate-700 simulando techo / corchete */}
+                        {/* Barra sólida muy delgada (7px) simulando techo / corchete */}
                         <div
-                          className="relative bg-slate-700 rounded-xs group-hover/phase:bg-slate-800 transition-colors shadow-xs"
+                          className={`relative rounded-xs transition-colors shadow-xs ${
+                            item.nivel === 1
+                              ? 'bg-slate-700 group-hover/phase:bg-slate-800'
+                              : 'bg-indigo-600/90 group-hover/phase:bg-indigo-700'
+                          }`}
                           style={{
                             width: `${Math.max(28, barWidth)}px`,
                             height: '7px',
                           }}
                         >
                           {/* Extremo izquierdo apuntando hacia abajo */}
-                          <div className="absolute left-0 top-0 w-1 h-3.5 bg-slate-700 rounded-b-xs group-hover/phase:bg-slate-800 transition-colors" />
+                          <div
+                            className={`absolute left-0 top-0 w-1 h-3.5 rounded-b-xs transition-colors ${
+                              item.nivel === 1
+                                ? 'bg-slate-700 group-hover/phase:bg-slate-800'
+                                : 'bg-indigo-600/90 group-hover/phase:bg-indigo-700'
+                            }`}
+                          />
                           {/* Extremo derecho apuntando hacia abajo */}
-                          <div className="absolute right-0 top-0 w-1 h-3.5 bg-slate-700 rounded-b-xs group-hover/phase:bg-slate-800 transition-colors" />
+                          <div
+                            className={`absolute right-0 top-0 w-1 h-3.5 rounded-b-xs transition-colors ${
+                              item.nivel === 1
+                                ? 'bg-slate-700 group-hover/phase:bg-slate-800'
+                                : 'bg-indigo-600/90 group-hover/phase:bg-indigo-700'
+                            }`}
+                          />
                         </div>
                       </div>
                     ) : (
@@ -875,17 +894,23 @@ export default function GanttChart({
               {hoveredTask.item.codigo || 'EDT'}
             </span>
             {hoveredTask.item.type === 'phase' ? (
-              <span className="text-[10px] font-semibold bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full border border-amber-200">
-                Fase / Resumen
+              <span
+                className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${
+                  hoveredTask.item.nivel === 1
+                    ? 'bg-amber-100 text-amber-800 border-amber-200'
+                    : 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                }`}
+              >
+                {hoveredTask.item.nivel === 1 ? 'Fase / Resumen' : 'Paquete de Trabajo (Resumen)'}
               </span>
             ) : hoveredTask.item.es_critica ? (
               <span className="text-[10px] font-bold bg-red-100 text-red-700 px-2.5 py-0.5 rounded-full border border-red-200 flex items-center gap-1.5 shadow-2xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                Tarea Crítica
+                Actividad Crítica
               </span>
             ) : (
               <span className="text-[10px] font-medium bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full border border-blue-200">
-                No Crítica (+<span className="font-mono">{hoveredTask.cpm?.holgura_total ?? 0}d</span>)
+                Actividad (+<span className="font-mono">{hoveredTask.cpm?.holgura_total ?? 0}d</span>)
               </span>
             )}
           </div>

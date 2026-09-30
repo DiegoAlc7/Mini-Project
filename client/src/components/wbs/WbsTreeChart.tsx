@@ -304,19 +304,17 @@ export default function WbsTreeChart({
                 </span>
               ) : hasChildren ? (
                 <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50/80 px-1.5 py-0.5 rounded">
-                  Fase ({totalHojas})
+                  {nodo.nivel === 1 ? 'Fase' : 'Paquete'} ({totalHojas})
                 </span>
               ) : esCritica ? (
                 <span className="text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                  Crítica
+                  Actividad Crítica
                 </span>
               ) : (
-                duracion > 0 && (
-                  <span className="text-[10px] font-mono font-medium text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded">
-                    {duracion}d
-                  </span>
-                )
+                <span className="text-[10px] font-mono font-medium text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded">
+                  Actividad ({duracion}d)
+                </span>
               )}
             </div>
 
@@ -676,10 +674,12 @@ export default function WbsTreeChart({
                       {isRoot
                         ? 'Proyecto Raíz'
                         : hasChildren
-                        ? 'Fase / Entregable Resumen'
+                        ? selectedNode.nivel === 1
+                          ? 'Fase / Entregable Principal'
+                          : 'Paquete de Trabajo (Resumen)'
                         : esCritica
-                        ? 'Tarea en Ruta Crítica'
-                        : 'Tarea Hoja'}
+                        ? 'Actividad en Ruta Crítica'
+                        : 'Actividad'}
                     </span>
                   </div>
                   <h3 className="text-base font-bold leading-tight">{selectedNode.nombre}</h3>
