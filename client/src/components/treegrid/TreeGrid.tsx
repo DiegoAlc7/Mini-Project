@@ -737,7 +737,7 @@ export default function TreeGrid({ proyectoId, onDataChange, dataVersion = 0 }: 
               {isRoot ? (
                 <FolderOpen size={16} className="text-blue-600" />
               ) : hasChildren ? (
-                <Folder size={15} className="text-amber-500" />
+                <Folder size={15} className={nodo.nivel === 1 ? 'text-amber-500' : 'text-indigo-600'} />
               ) : (
                 <FileText
                   size={14}

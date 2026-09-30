@@ -107,10 +107,59 @@ export default function WbsTreeChart({
     return map;
   }, [cpmData]);
 
+  // Cálculo recursivo de métricas de cualquier nodo contenedor (Fase o Paquete)
+  const calcularMetricasNodo = useCallback(
+    (nodo: NodoEdt) => {
+      const leaves: CpmResult[] = [];
+      function recolectarHojas(n: NodoEdt) {
+        if (!n.children || n.children.length === 0) {
+          if (n.actividad) {
+            const cpmAct = cpmMap.get(n.actividad.id);
+            if (cpmAct) leaves.push(cpmAct);
+          }
+        } else {
+          n.children.forEach(recolectarHojas);
+        }
+      }
+      recolectarHojas(nodo);
+
+      if (leaves.length === 0) {
+        return {
+          duracion: 0,
+          fecha_inicio: cpmData?.fecha_inicio || '',
+          fecha_fin: cpmData?.fecha_inicio || '',
+          totalActividades: 0,
+          criticas: 0,
+        };
+      }
+
+      const minEs = Math.min(...leaves.map((l) => l.es));
+      const maxEf = Math.max(...leaves.map((l) => l.ef));
+      const criticas = leaves.filter((l) => l.es_critica || l.holgura_total === 0).length;
+
+      const sortedByStart = [...leaves]
+        .filter((l) => Boolean(l.fecha_inicio))
+        .sort((a, b) => a.fecha_inicio.localeCompare(b.fecha_inicio));
+      const sortedByEnd = [...leaves]
+        .filter((l) => Boolean(l.fecha_fin))
+        .sort((a, b) => a.fecha_fin.localeCompare(b.fecha_fin));
+
+      return {
+        duracion: isFinite(maxEf) && isFinite(minEs) && maxEf > minEs ? Math.round((maxEf - minEs) * 100) / 100 : 0,
+        fecha_inicio: sortedByStart[0]?.fecha_inicio || cpmData?.fecha_inicio || '',
+        fecha_fin: sortedByEnd[sortedByEnd.length - 1]?.fecha_fin || cpmData?.fecha_fin || '',
+        totalActividades: leaves.length,
+        criticas,
+      };
+    },
+    [cpmMap, cpmData]
+  );
+
   // Recuento de estadísticas
   const stats = useMemo(() => {
     let fases = 0;
-    let tareas = 0;
+    let paquetes = 0;
+    let actividades = 0;
     let criticas = 0;
 
     function contar(nodo: NodoEdt) {
@@ -118,10 +167,12 @@ export default function WbsTreeChart({
       const hasChildren = Boolean(nodo.children && nodo.children.length > 0);
 
       if (!isRoot) {
-        if (hasChildren) {
+        if (nodo.nivel === 1) {
           fases++;
+        } else if (hasChildren) {
+          paquetes++;
         } else {
-          tareas++;
+          actividades++;
           if (nodo.actividad) {
             const cpm = cpmMap.get(nodo.actividad.id);
             if (cpm?.es_critica || cpm?.holgura_total === 0) {
@@ -137,7 +188,7 @@ export default function WbsTreeChart({
     }
 
     arbolEdt.forEach(contar);
-    return { fases, tareas, criticas };
+    return { fases, paquetes, actividades, criticas };
   }, [arbolEdt, cpmMap]);
 
   // Colapsar o expandir un nodo específico
@@ -159,7 +210,22 @@ export default function WbsTreeChart({
     setCollapsedIds(new Set());
   };
 
-  // Colapsar a Fases (dejar colapsados todos los nodos de nivel >= 2 que tengan hijos)
+  // Colapsar a Paquetes (muestra Fases y Paquetes de Trabajo, ocultando actividades hijas)
+  const handleCollapseToPackages = () => {
+    const ids = new Set<number>();
+    function buscar(nodo: NodoEdt) {
+      if (nodo.children && nodo.children.length > 0) {
+        if (nodo.nivel >= 2) {
+          ids.add(nodo.id);
+        }
+        nodo.children.forEach(buscar);
+      }
+    }
+    arbolEdt.forEach(buscar);
+    setCollapsedIds(ids);
+  };
+
+  // Colapsar a Fases (dejar colapsados todos los nodos de nivel >= 1 que tengan hijos)
   const handleCollapseToPhases = () => {
     const ids = new Set<number>();
     function buscar(nodo: NodoEdt) {
@@ -252,159 +318,195 @@ export default function WbsTreeChart({
     return (
       <div key={nodo.id} className="flex flex-col items-center select-none">
         {/* TARJETA DEL NODO (Node Card) */}
-        <div
-          onClick={() => setSelectedNode(nodo)}
-          className={`node-card relative w-60 rounded-xl transition-all duration-200 cursor-pointer text-left group ${
-            isMatched
-              ? 'ring-4 ring-amber-400 scale-105 z-10'
-              : ''
-          } ${
-            isRoot
-              ? 'bg-slate-900 text-white border-2 border-slate-800 shadow-lg hover:shadow-xl hover:border-slate-700'
-              : hasChildren
-              ? 'bg-white border-2 border-indigo-200/90 text-slate-800 shadow-xs hover:border-indigo-400 hover:shadow-md'
-              : esCritica
-              ? 'bg-white border-2 border-red-300 text-slate-800 shadow-xs hover:border-red-500 hover:shadow-md'
-              : 'bg-white border border-slate-200 text-slate-800 shadow-xs hover:border-blue-400 hover:shadow-md'
-          }`}
-        >
-          {/* Barra superior de acento según tipo */}
-          <div
-            className={`h-1.5 rounded-t-[10px] w-full ${
-              isRoot
-                ? 'bg-gradient-to-r from-blue-500 to-indigo-500'
-                : hasChildren
-                ? 'bg-indigo-500'
-                : esCritica
-                ? 'bg-red-500'
-                : 'bg-blue-500'
-            }`}
-          />
+        {(() => {
+          const isFase = !isRoot && nodo.nivel === 1;
+          const isPaquete = !isRoot && hasChildren && nodo.nivel >= 2;
+          const metricasContenedor = hasChildren ? calcularMetricasNodo(nodo) : null;
 
-          <div className="p-3">
-            {/* Cabecera de la tarjeta: Código y Badge */}
-            <div className="flex items-center justify-between gap-1.5 mb-1.5">
-              <span
-                className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded ${
-                  isRoot
-                    ? 'bg-slate-800 text-blue-300 border border-slate-700'
-                    : hasChildren
-                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                    : esCritica
-                    ? 'bg-red-50 text-red-700 border border-red-200'
-                    : 'bg-blue-50 text-blue-700 border border-blue-200'
-                }`}
-              >
-                {nodo.codigo || 'EDT'}
-              </span>
-
-              {isRoot ? (
-                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                  Proyecto
-                </span>
-              ) : hasChildren ? (
-                <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50/80 px-1.5 py-0.5 rounded">
-                  {nodo.nivel === 1 ? 'Fase' : 'Paquete'} ({totalHojas})
-                </span>
-              ) : esCritica ? (
-                <span className="text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                  Actividad Crítica
-                </span>
-              ) : (
-                <span className="text-[10px] font-mono font-medium text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded">
-                  Actividad ({duracion}d)
-                </span>
-              )}
-            </div>
-
-            {/* Nombre del nodo */}
-            <h4
-              className={`text-xs font-bold leading-snug line-clamp-2 mb-2 ${
-                isRoot ? 'text-white' : 'text-slate-800'
+          return (
+            <div
+              onClick={() => setSelectedNode(nodo)}
+              className={`node-card relative w-60 rounded-xl transition-all duration-200 cursor-pointer text-left group ${
+                isMatched
+                  ? 'ring-4 ring-amber-400 scale-105 z-10'
+                  : ''
+              } ${
+                isRoot
+                  ? 'bg-slate-900 text-white border-2 border-slate-800 shadow-lg hover:shadow-xl hover:border-slate-700'
+                  : isFase
+                  ? 'bg-white border-2 border-amber-300 text-slate-800 shadow-xs hover:border-amber-500 hover:shadow-md'
+                  : isPaquete
+                  ? 'bg-white border-2 border-indigo-200/90 text-slate-800 shadow-xs hover:border-indigo-400 hover:shadow-md'
+                  : esCritica
+                  ? 'bg-white border-2 border-red-300 text-slate-800 shadow-xs hover:border-red-500 hover:shadow-md'
+                  : 'bg-white border border-slate-200 text-slate-800 shadow-xs hover:border-blue-400 hover:shadow-md'
               }`}
-              title={nodo.nombre}
             >
-              {nodo.nombre}
-            </h4>
+              {/* Barra superior de acento según tipo */}
+              <div
+                className={`h-1.5 rounded-t-[10px] w-full ${
+                  isRoot
+                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500'
+                    : isFase
+                    ? 'bg-amber-500'
+                    : isPaquete
+                    ? 'bg-indigo-500'
+                    : esCritica
+                    ? 'bg-red-500'
+                    : 'bg-blue-500'
+                }`}
+              />
 
-            {/* Metadatos inferiores para tareas hoja */}
-            {!isRoot && !hasChildren && (
-              <div className="pt-2 border-t border-slate-100 space-y-1.5 text-[10px]">
-                {/* Fechas de inicio y fin */}
-                {cpm?.fecha_inicio && cpm?.fecha_fin && (
-                  <div className="flex items-center justify-between text-slate-500 font-mono text-[10px]">
-                    <span className="flex items-center gap-1">
-                      <Calendar size={11} className="text-slate-400 shrink-0" />
-                      <span>{formatShortDate(cpm.fecha_inicio)}</span>
+              <div className="p-3">
+                {/* Cabecera de la tarjeta: Código y Badge */}
+                <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                  <span
+                    className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded ${
+                      isRoot
+                        ? 'bg-slate-800 text-blue-300 border border-slate-700'
+                        : isFase
+                        ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                        : isPaquete
+                        ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                        : esCritica
+                        ? 'bg-red-50 text-red-700 border border-red-200'
+                        : 'bg-blue-50 text-blue-700 border border-blue-200'
+                    }`}
+                  >
+                    {nodo.codigo || 'EDT'}
+                  </span>
+
+                  {isRoot ? (
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                      Proyecto
                     </span>
-                    <span>→</span>
-                    <span className="font-semibold text-slate-700">{formatShortDate(cpm.fecha_fin)}</span>
+                  ) : isFase ? (
+                    <span className="text-[10px] font-semibold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                      Fase ({totalHojas})
+                    </span>
+                  ) : isPaquete ? (
+                    <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50/80 px-1.5 py-0.5 rounded border border-indigo-200">
+                      Paquete ({totalHojas})
+                    </span>
+                  ) : esCritica ? (
+                    <span className="text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                      Actividad Crítica
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-mono font-medium text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded">
+                      Actividad ({duracion}d)
+                    </span>
+                  )}
+                </div>
+
+                {/* Nombre del nodo */}
+                <h4
+                  className={`text-xs font-bold leading-snug line-clamp-2 mb-2 ${
+                    isRoot ? 'text-white' : 'text-slate-800'
+                  }`}
+                  title={nodo.nombre}
+                >
+                  {nodo.nombre}
+                </h4>
+
+                {/* Metadatos inferiores para Fases y Paquetes de Trabajo (Resumen calculado) */}
+                {hasChildren && metricasContenedor && (
+                  <div className="pt-2 border-t border-slate-100 space-y-1 text-[10px]">
+                    {metricasContenedor.fecha_inicio && metricasContenedor.fecha_fin && (
+                      <div className="flex items-center justify-between text-slate-500 font-mono text-[10px]">
+                        <span className="flex items-center gap-1">
+                          <Calendar size={11} className="text-slate-400 shrink-0" />
+                          <span>{formatShortDate(metricasContenedor.fecha_inicio)}</span>
+                        </span>
+                        <span>→</span>
+                        <span className="font-semibold text-slate-700">{formatShortDate(metricasContenedor.fecha_fin)}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between text-[10px] text-slate-500">
+                      <span className="text-slate-400 font-medium">Lapso temporal:</span>
+                      <span className="font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">
+                        ∑ {metricasContenedor.duracion}d
+                      </span>
+                    </div>
                   </div>
                 )}
 
-                {/* Responsable */}
-                {responsable && (
-                  <div className="flex items-center gap-1.5 pt-0.5 text-slate-600">
-                    {miembro ? (
-                      <>
-                        <img
-                          src={miembro.avatar}
-                          alt={miembro.nombre}
-                          className="w-4 h-4 rounded-full object-cover bg-slate-200 shrink-0"
-                        />
-                        <span className="truncate font-medium text-[10px] text-slate-700">
-                          {miembro.nombre}
+                {/* Metadatos inferiores para actividades ejecutables (hojas) */}
+                {!isRoot && !hasChildren && (
+                  <div className="pt-2 border-t border-slate-100 space-y-1.5 text-[10px]">
+                    {/* Fechas de inicio y fin */}
+                    {cpm?.fecha_inicio && cpm?.fecha_fin && (
+                      <div className="flex items-center justify-between text-slate-500 font-mono text-[10px]">
+                        <span className="flex items-center gap-1">
+                          <Calendar size={11} className="text-slate-400 shrink-0" />
+                          <span>{formatShortDate(cpm.fecha_inicio)}</span>
                         </span>
-                      </>
-                    ) : (
-                      <>
-                        <User size={11} className="text-slate-400 shrink-0" />
-                        <span className="truncate text-[10px]">{responsable}</span>
-                      </>
+                        <span>→</span>
+                        <span className="font-semibold text-slate-700">{formatShortDate(cpm.fecha_fin)}</span>
+                      </div>
+                    )}
+
+                    {/* Responsable */}
+                    {responsable && (
+                      <div className="flex items-center gap-1.5 pt-0.5 text-slate-600">
+                        {miembro ? (
+                          <>
+                            <img
+                              src={miembro.avatar}
+                              alt={miembro.nombre}
+                              className="w-4 h-4 rounded-full object-cover bg-slate-200 shrink-0"
+                            />
+                            <span className="truncate font-medium text-[10px] text-slate-700">
+                              {miembro.nombre}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <User size={11} className="text-slate-400 shrink-0" />
+                            <span className="truncate text-[10px]">{responsable}</span>
+                          </>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
+
+                {/* Descripción breve si es raíz */}
+                {isRoot && nodo.descripcion && (
+                  <p className="text-[10px] line-clamp-2 mt-1 leading-relaxed text-slate-400">
+                    {nodo.descripcion}
+                  </p>
+                )}
               </div>
-            )}
 
-            {/* Descripción breve si es raíz o fase */}
-            {(isRoot || hasChildren) && nodo.descripcion && (
-              <p
-                className={`text-[10px] line-clamp-2 mt-1 leading-relaxed ${
-                  isRoot ? 'text-slate-400' : 'text-slate-500'
-                }`}
-              >
-                {nodo.descripcion}
-              </p>
-            )}
-          </div>
-
-          {/* BOTÓN COLAPSAR / EXPANDIR HIJOS (en el borde inferior central) */}
-          {hasChildren && (
-            <button
-              onClick={(e) => toggleCollapse(nodo.id, e)}
-              className={`absolute -bottom-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[9px] font-bold shadow-xs transition-transform hover:scale-110 flex items-center gap-1 cursor-pointer z-20 ${
-                isCollapsed
-                  ? 'bg-indigo-600 text-white border border-indigo-700 ring-2 ring-white'
-                  : 'bg-white text-slate-600 border border-slate-300 hover:text-slate-900 ring-2 ring-white'
-              }`}
-              title={isCollapsed ? 'Expandir subtareas' : 'Colapsar subtareas'}
-            >
-              {isCollapsed ? (
-                <>
-                  <ChevronRight size={10} />
-                  <span>+{nodo.children.length}</span>
-                </>
-              ) : (
-                <>
-                  <ChevronDown size={10} />
-                  <span>{nodo.children.length}</span>
-                </>
+              {/* BOTÓN COLAPSAR / EXPANDIR HIJOS (en el borde inferior central) */}
+              {hasChildren && (
+                <button
+                  onClick={(e) => toggleCollapse(nodo.id, e)}
+                  className={`absolute -bottom-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[9px] font-bold shadow-xs transition-transform hover:scale-110 flex items-center gap-1 cursor-pointer z-20 ${
+                    isCollapsed
+                      ? 'bg-indigo-600 text-white border border-indigo-700 ring-2 ring-white'
+                      : 'bg-white text-slate-600 border border-slate-300 hover:text-slate-900 ring-2 ring-white'
+                  }`}
+                  title={isCollapsed ? 'Expandir subtareas' : 'Colapsar subtareas'}
+                >
+                  {isCollapsed ? (
+                    <>
+                      <ChevronRight size={10} />
+                      <span>+{nodo.children.length}</span>
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown size={10} />
+                      <span>{nodo.children.length}</span>
+                    </>
+                  )}
+                </button>
               )}
-            </button>
-          )}
-        </div>
+            </div>
+          );
+        })()}
 
         {/* RAMAS Y SUBÁRBOLES CONECTADOS (Líneas de organigrama) */}
         {hasChildren && !isCollapsed && (
@@ -498,27 +600,33 @@ export default function WbsTreeChart({
             <span className="text-slate-500 font-medium">Estructura:</span>
             <span className="font-bold text-slate-700">{stats.fases} fases</span>
             <span className="text-slate-300">•</span>
-            <span className="font-bold text-slate-700">{stats.tareas} tareas</span>
+            <span className="font-bold text-indigo-700">{stats.paquetes} paquetes</span>
+            <span className="text-slate-300">•</span>
+            <span className="font-bold text-slate-700">{stats.actividades} actividades</span>
             {stats.criticas > 0 && (
               <>
                 <span className="text-slate-300">•</span>
                 <span className="font-bold text-red-600 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                   {stats.criticas} críticas
                 </span>
               </>
             )}
           </div>
 
-          {/* Leyenda de Colores */}
-          <div className="hidden lg:flex items-center gap-3 text-[11px] text-slate-600 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
+          {/* Leyenda de Colores Completa */}
+          <div className="hidden xl:flex items-center gap-3 text-[11px] text-slate-600 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-xs bg-slate-900 shrink-0" />
-              <span>Proyecto Raíz</span>
+              <span>Proyecto</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-xs bg-amber-500 shrink-0" />
+              <span>Fases</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-xs bg-indigo-500 shrink-0" />
-              <span>Fases / Paquetes</span>
+              <span>Paquetes</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-xs bg-red-500 shrink-0" />
@@ -526,7 +634,7 @@ export default function WbsTreeChart({
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-xs bg-blue-500 shrink-0" />
-              <span>Tarea Regular</span>
+              <span>Actividad</span>
             </div>
           </div>
         </div>
@@ -558,14 +666,21 @@ export default function WbsTreeChart({
             <button
               onClick={handleExpandAll}
               className="px-2.5 py-1 rounded-md text-[11px] font-medium text-slate-700 hover:text-slate-900 hover:bg-white transition-all cursor-pointer"
-              title="Expandir todas las cajas del organigrama"
+              title="Expandir todas las cajas del organigrama (Proyecto, Fases, Paquetes y Actividades)"
             >
               Expandir Todo
             </button>
             <button
+              onClick={handleCollapseToPackages}
+              className="px-2.5 py-1 rounded-md text-[11px] font-medium text-slate-700 hover:text-slate-900 hover:bg-white transition-all cursor-pointer"
+              title="Ver Fases y Paquetes de Trabajo (oculta las actividades hijas)"
+            >
+              Fases y Paquetes
+            </button>
+            <button
               onClick={handleCollapseToPhases}
               className="px-2.5 py-1 rounded-md text-[11px] font-medium text-slate-700 hover:text-slate-900 hover:bg-white transition-all cursor-pointer"
-              title="Colapsar las tareas y ver solo las fases principales"
+              title="Colapsar todo y ver solo las fases principales"
             >
               Solo Fases
             </button>
@@ -638,6 +753,7 @@ export default function WbsTreeChart({
       {selectedNode && (() => {
         const isRoot = selectedNode.padre_id === null;
         const hasChildren = Boolean(selectedNode.children && selectedNode.children.length > 0);
+        const metricasSel = hasChildren ? calcularMetricasNodo(selectedNode) : null;
         const cpm = selectedNode.actividad ? cpmMap.get(selectedNode.actividad.id) : undefined;
         const esCritica = cpm ? cpm.es_critica || cpm.holgura_total === 0 : false;
         const duracion = cpm?.duracion ?? (selectedNode.actividad?.duracion_esperada || 0);
@@ -659,7 +775,9 @@ export default function WbsTreeChart({
                   isRoot
                     ? 'bg-slate-900'
                     : hasChildren
-                    ? 'bg-indigo-700'
+                    ? selectedNode.nivel === 1
+                      ? 'bg-amber-600'
+                      : 'bg-indigo-700'
                     : esCritica
                     ? 'bg-red-600'
                     : 'bg-blue-600'
@@ -699,6 +817,40 @@ export default function WbsTreeChart({
                   <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
                     <span className="font-semibold text-slate-500 block mb-1">Descripción:</span>
                     <p className="text-slate-700 leading-relaxed">{selectedNode.descripcion}</p>
+                  </div>
+                )}
+
+                {/* Si es un contenedor (Fase o Paquete de Trabajo) */}
+                {hasChildren && metricasSel && (
+                  <div className="grid grid-cols-2 gap-3 bg-slate-50 border border-slate-200/80 rounded-xl p-3.5">
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">Duración Acumulada</span>
+                      <span className="text-sm font-bold text-slate-800 font-mono">
+                        ∑ {metricasSel.duracion} días
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">Actividades Hijas</span>
+                      <span className="text-sm font-bold text-indigo-700 font-mono">
+                        {metricasSel.totalActividades} {metricasSel.criticas > 0 ? `(${metricasSel.criticas} críticas)` : ''}
+                      </span>
+                    </div>
+                    {metricasSel.fecha_inicio && (
+                      <div>
+                        <span className="text-slate-400 block text-[11px]">Fecha de Inicio</span>
+                        <span className="text-xs font-semibold text-slate-700 font-mono">
+                          {formatDate(metricasSel.fecha_inicio)}
+                        </span>
+                      </div>
+                    )}
+                    {metricasSel.fecha_fin && (
+                      <div>
+                        <span className="text-slate-400 block text-[11px]">Fecha de Fin</span>
+                        <span className="text-xs font-semibold text-slate-700 font-mono">
+                          {formatDate(metricasSel.fecha_fin)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
