@@ -223,9 +223,9 @@ export default function TreeGrid({ proyectoId, onDataChange, dataVersion = 0 }: 
     const hojas: { nodo: NodoEdt; actividad: Actividad }[] = [];
     function buscarHojas(nodos: NodoEdt[]) {
       for (const n of nodos) {
-        const isRoot = n.padre_id === null;
+        const isRoot = n.padre_id === null || n.nivel === 0;
         const hasChildren = Boolean(n.children && n.children.length > 0);
-        if (!isRoot && !hasChildren && n.actividad) {
+        if (!isRoot && !hasChildren && n.nivel >= 3 && n.actividad) {
           hojas.push({ nodo: n, actividad: n.actividad });
         }
         if (n.children && n.children.length > 0) {
@@ -334,16 +334,26 @@ export default function TreeGrid({ proyectoId, onDataChange, dataVersion = 0 }: 
       }
       recolectarHojas(nodo);
 
-      if (leaves.length === 0) return 0;
+      if (leaves.length > 0) {
+        const minEs = Math.min(...leaves.map((l) => l.es));
+        const maxEf = Math.max(...leaves.map((l) => l.ef));
 
-      const minEs = Math.min(...leaves.map((l) => l.es));
-      const maxEf = Math.max(...leaves.map((l) => l.ef));
-
-      if (!isFinite(minEs) || !isFinite(maxEf) || maxEf <= minEs) {
-        return 0;
+        if (isFinite(minEs) && isFinite(maxEf) && maxEf > minEs) {
+          return Math.round((maxEf - minEs) * 100) / 100;
+        }
       }
 
-      return Math.round((maxEf - minEs) * 100) / 100;
+      // Fallback: si aún no hay cálculo CPM, sumar duraciones esperadas de actividades hijas
+      let sumaTe = 0;
+      function sumarHojas(n: NodoEdt) {
+        if (!n.children || n.children.length === 0) {
+          if (n.actividad?.duracion_esperada) sumaTe += n.actividad.duracion_esperada;
+        } else {
+          n.children.forEach(sumarHojas);
+        }
+      }
+      sumarHojas(nodo);
+      return Math.round(sumaTe * 100) / 100;
     },
     [cpmMap]
   );
@@ -581,6 +591,9 @@ export default function TreeGrid({ proyectoId, onDataChange, dataVersion = 0 }: 
 
   // Renderizar fila especial para agregar tarea en línea (REGLA 3)
   const renderInlineAddRow = (padre: NodoEdt) => {
+    // Las actividades (nivel >= 3) son terminales en PMBOK y no admiten subtareas
+    if (padre.nivel >= 3) return null;
+
     const isAdding = inlineAddingPadreId === padre.id;
     const isPadreRoot = padre.nivel === 0 || padre.padre_id === null;
     const isPadreFase = padre.nivel === 1;
@@ -678,16 +691,23 @@ export default function TreeGrid({ proyectoId, onDataChange, dataVersion = 0 }: 
 
   // Renderizar fila jerárquica
   const renderRow = (nodo: NodoEdt) => {
-    // REGLA 1: Detección de Nodos
-    // Es contenedor si es el nodo raíz (padre_id === null) o si tiene tareas hijas
-    const isRoot = nodo.padre_id === null;
+    // REGLA PMBOK: Jerarquía de 4 Niveles
+    // Nivel 0 = Proyecto Raíz
+    // Nivel 1 = Fase
+    // Nivel 2 = Paquete de Trabajo
+    // Nivel 3 = Actividad (Unidad ejecutable de trabajo)
+    const isRoot = nodo.padre_id === null || nodo.nivel === 0;
+    const isFase = nodo.nivel === 1;
+    const isPaquete = nodo.nivel === 2;
+    const isActividad = nodo.nivel >= 3;
+
     const hasChildren = Boolean(nodo.children && nodo.children.length > 0);
-    const isContenedor = isRoot || hasChildren;
-    // Es hoja estricta y únicamente si NO es contenedor (no es raíz y no tiene subtareas)
-    const isHoja = !isContenedor;
+    // Es contenedor si es raíz, fase, paquete de trabajo, o si tiene subtareas
+    const isContenedor = isRoot || isFase || isPaquete || hasChildren;
+    const isHoja = isActividad && !hasChildren;
 
     const isExpanded = expandedIds.has(nodo.id);
-    const duracionFase = isContenedor && hasChildren ? calcularDuracionFase(nodo) : 0;
+    const duracionFase = isContenedor ? calcularDuracionFase(nodo) : 0;
 
     const actividad = nodo.actividad;
     const esCritica = actividad ? rutaCriticaSet.has(actividad.id) : false;
@@ -704,8 +724,10 @@ export default function TreeGrid({ proyectoId, onDataChange, dataVersion = 0 }: 
           className={`relative group flex items-center text-xs border-b border-slate-200 min-h-[46px] transition-colors ${
             isRoot
               ? 'bg-blue-50/70 font-semibold text-slate-900 py-2.5'
-              : hasChildren
-              ? 'bg-slate-50/80 font-medium text-slate-800 py-2'
+              : isFase
+              ? 'bg-amber-50/20 font-medium text-slate-800 py-2'
+              : isPaquete
+              ? 'bg-indigo-50/20 font-medium text-slate-800 py-2'
               : esCritica
               ? 'bg-red-50/40 hover:bg-red-50/70 py-1.5'
               : 'hover:bg-slate-50/60 py-1.5'
@@ -736,8 +758,10 @@ export default function TreeGrid({ proyectoId, onDataChange, dataVersion = 0 }: 
             <span className="shrink-0 flex items-center justify-center self-center">
               {isRoot ? (
                 <FolderOpen size={16} className="text-blue-600" />
-              ) : hasChildren ? (
-                <Folder size={15} className={nodo.nivel === 1 ? 'text-amber-500' : 'text-indigo-600'} />
+              ) : isFase ? (
+                <Folder size={15} className="text-amber-500" />
+              ) : isPaquete ? (
+                <Folder size={15} className="text-indigo-600" />
               ) : (
                 <FileText
                   size={14}
@@ -753,8 +777,10 @@ export default function TreeGrid({ proyectoId, onDataChange, dataVersion = 0 }: 
                 className={`font-mono text-xs shrink-0 m-0 p-0 leading-normal ${
                   isRoot
                     ? 'text-blue-800 font-bold'
-                    : hasChildren
-                    ? 'text-slate-800 font-semibold'
+                    : isFase
+                    ? 'text-amber-900 font-semibold'
+                    : isPaquete
+                    ? 'text-indigo-900 font-semibold'
                     : 'text-blue-600 font-semibold'
                 }`}
               >
@@ -805,15 +831,15 @@ export default function TreeGrid({ proyectoId, onDataChange, dataVersion = 0 }: 
                     </span>
                   )}
 
-                  {hasChildren && !isRoot && (
+                  {!isRoot && (isFase || isPaquete) && (
                     <span
                       className={`text-[10px] font-semibold px-2 py-0.5 rounded shrink-0 self-center leading-tight ${
-                        nodo.nivel === 1
+                        isFase
                           ? 'bg-amber-100 text-amber-800 border border-amber-200'
                           : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
                       }`}
                     >
-                      {nodo.nivel === 1 ? 'Fase' : 'Paquete de Trabajo'}
+                      {isFase ? 'Fase' : 'Paquete de Trabajo'}
                     </span>
                   )}
 
@@ -839,20 +865,29 @@ export default function TreeGrid({ proyectoId, onDataChange, dataVersion = 0 }: 
             </div>
           </div>
 
-          {/* COLUMNA 2: Te (Días) (14%) (REGLA 2: Modal al clic/hover en hojas, estático en contenedores) */}
+          {/* COLUMNA 2: Te (Días) (14%) (REGLA PMBOK: Solo actividades se estiman, contenedores acumulan) */}
           <div className="text-center px-2 font-mono shrink-0 select-none" style={{ width: '14%', flex: '0 0 14%' }}>
             {isContenedor ? (
-              hasChildren && duracionFase > 0 ? (
+              duracionFase > 0 ? (
                 <span
                   className="bg-gray-100 text-gray-700 font-medium px-2 py-0.5 rounded text-[11px] font-mono inline-block"
-                  title="Duración del lapso temporal de la fase basado en CPM (EF máx - ES mín de sus subtareas)"
+                  title="Duración acumulada de actividades basada en CPM"
                 >
                   ∑ {duracionFase}d
                 </span>
               ) : (
-                <span className="text-gray-300 font-mono text-xs tracking-widest text-center">
-                  --
-                </span>
+                <button
+                  onClick={() => {
+                    setInlineAddingPadreId(nodo.id);
+                    setInlineNombre('');
+                    setExpandedIds((prev) => new Set([...prev, nodo.id]));
+                  }}
+                  className="text-indigo-600 hover:text-indigo-800 text-[11px] font-medium hover:underline inline-flex items-center gap-1 cursor-pointer transition-colors"
+                  title={isFase ? 'Añadir paquete de trabajo' : 'Añadir actividad'}
+                >
+                  <Plus size={11} className="stroke-[2.5]" />
+                  <span>{isFase ? '+ Paquete' : '+ Actividad'}</span>
+                </button>
               )
             ) : (
               <div
@@ -1038,7 +1073,7 @@ export default function TreeGrid({ proyectoId, onDataChange, dataVersion = 0 }: 
         {(isExpanded || inlineAddingPadreId === nodo.id) && (
           <div>
             {hasChildren && nodo.children.map((hijo) => renderRow(hijo))}
-            {(isRoot || hasChildren || inlineAddingPadreId === nodo.id) && renderInlineAddRow(nodo)}
+            {nodo.nivel < 3 && (isRoot || hasChildren || inlineAddingPadreId === nodo.id) && renderInlineAddRow(nodo)}
           </div>
         )}
       </div>
@@ -1096,26 +1131,28 @@ export default function TreeGrid({ proyectoId, onDataChange, dataVersion = 0 }: 
             }}
             className="kebab-menu-container w-40 bg-white rounded-lg shadow-xl border border-slate-200 py-1 z-[9999] animate-in fade-in zoom-in-95 duration-100 select-none"
           >
-            {/* Opción Añadir subtarea */}
-            <button
-              onClick={() => {
-                const targetNode = kebabMenu.nodo;
-                setKebabMenu(null);
-                setInlineAddingPadreId(targetNode.id);
-                setInlineNombre('');
-                setExpandedIds((prev) => new Set([...prev, targetNode.id]));
-              }}
-              className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100 flex items-center gap-2 cursor-pointer"
-            >
-              <Plus size={13} className="text-emerald-600 shrink-0" />
-              <span>
-                {kebabMenu.nodo.nivel === 0
-                  ? 'Añadir fase'
-                  : kebabMenu.nodo.nivel === 1
-                  ? 'Añadir paquete'
-                  : 'Añadir actividad'}
-              </span>
-            </button>
+            {/* Opción Añadir subtarea (solo disponible si nivel < 3) */}
+            {kebabMenu.nodo.nivel < 3 && (
+              <button
+                onClick={() => {
+                  const targetNode = kebabMenu.nodo;
+                  setKebabMenu(null);
+                  setInlineAddingPadreId(targetNode.id);
+                  setInlineNombre('');
+                  setExpandedIds((prev) => new Set([...prev, targetNode.id]));
+                }}
+                className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100 flex items-center gap-2 cursor-pointer"
+              >
+                <Plus size={13} className="text-emerald-600 shrink-0" />
+                <span>
+                  {kebabMenu.nodo.nivel === 0
+                    ? 'Añadir fase'
+                    : kebabMenu.nodo.nivel === 1
+                    ? 'Añadir paquete de trabajo'
+                    : 'Añadir actividad'}
+                </span>
+              </button>
+            )}
 
             {/* Opción Eliminar: No disponible para el nodo raíz */}
             {kebabMenu.nodo.padre_id !== null && (

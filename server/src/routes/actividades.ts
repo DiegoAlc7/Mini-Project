@@ -45,6 +45,15 @@ router.post('/', (req: Request, res: Response) => {
     const nodo = get('SELECT * FROM nodo_edt WHERE id = ?', [nodo_edt_id]);
     if (!nodo) return res.status(404).json({ error: 'Nodo EDT no encontrado' });
 
+    // REGLA PMBOK: Solo los nodos terminales (Actividades, nivel >= 3) pueden tener estimación directa
+    if (nodo.nivel < 3) {
+      return res.status(400).json({
+        error: nodo.nivel === 1
+          ? 'Las fases no admiten estimación directa; agrega paquetes de trabajo y actividades'
+          : 'Los paquetes de trabajo son agrupadores; agrega actividades para estimar tiempos'
+      });
+    }
+
     const hijos = get('SELECT COUNT(*) as c FROM nodo_edt WHERE padre_id = ?', [nodo_edt_id]);
     if (hijos?.c > 0) return res.status(400).json({ error: 'Solo se pueden crear actividades en nodos hoja' });
 
@@ -74,6 +83,15 @@ router.post('/upsert', (req: Request, res: Response) => {
 
     const nodo = get('SELECT * FROM nodo_edt WHERE id = ?', [Number(nodo_edt_id)]);
     if (!nodo) return res.status(404).json({ error: 'Nodo EDT no encontrado' });
+
+    // REGLA PMBOK: Solo los nodos terminales (Actividades, nivel >= 3) pueden tener estimación directa
+    if (nodo.nivel < 3) {
+      return res.status(400).json({
+        error: nodo.nivel === 1
+          ? 'Las fases no admiten estimación directa; agrega paquetes de trabajo y actividades'
+          : 'Los paquetes de trabajo son agrupadores; agrega actividades para estimar tiempos'
+      });
+    }
 
     // REGLA 4: Solo nodos hoja pueden tener variables PERT
     const hijos = get('SELECT COUNT(*) as c FROM nodo_edt WHERE padre_id = ?', [nodo_edt_id]);
