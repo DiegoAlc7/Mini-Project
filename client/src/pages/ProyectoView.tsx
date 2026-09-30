@@ -13,17 +13,19 @@ import {
   ChevronRight,
   Pencil,
   Network,
+  Workflow,
 } from 'lucide-react';
 import type { Proyecto, CpmResponse } from '../types';
 import { getProyecto, getCpm, updateProyecto } from '../lib/api';
 import TreeGrid from '../components/treegrid/TreeGrid';
 import GanttChart from '../components/gantt/GanttChart';
 import WbsTreeChart from '../components/wbs/WbsTreeChart';
+import PertDiagram from '../components/pert/PertDiagram';
 import ProyectoForm from '../components/proyecto/ProyectoForm';
 import TeamManagementModal from '../components/team/TeamManagementModal';
 import { ProjectResourceProvider, useResources } from '../context/ResourceContext';
 
-type Tab = 'plan' | 'gantt' | 'wbs';
+type Tab = 'plan' | 'wbs' | 'gantt' | 'pert';
 
 function formatFechaLegible(dStr?: string): string {
   if (!dStr) return '';
@@ -258,6 +260,46 @@ function ProyectoContent({
               </button>
             )}
 
+            {/* Pestaña: Organigrama EDT */}
+            {!isSidebarCollapsed ? (
+              <button
+                onClick={() => setActiveTab('wbs')}
+                className={`w-full flex items-start gap-2.5 px-3 py-2 rounded-xl text-left transition-all cursor-pointer ${
+                  activeTab === 'wbs'
+                    ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 font-semibold'
+                    : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900 border border-transparent'
+                }`}
+              >
+                <div
+                  className={`p-1.5 rounded-lg shrink-0 mt-0.5 transition-colors ${
+                    activeTab === 'wbs'
+                      ? 'bg-slate-100 text-slate-900'
+                      : 'text-slate-400'
+                  }`}
+                >
+                  <Network size={16} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-semibold leading-tight">Organigrama EDT</div>
+                  <div className="text-[10px] text-slate-400 truncate mt-0.5">
+                    Árbol Jerárquico WBS
+                  </div>
+                </div>
+              </button>
+            ) : (
+              <button
+                onClick={() => setActiveTab('wbs')}
+                className={`w-full flex items-center justify-center p-2.5 rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'wbs'
+                    ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80'
+                    : 'text-slate-400 hover:bg-slate-200/50 hover:text-slate-800'
+                }`}
+                title="Organigrama EDT (Árbol WBS)"
+              >
+                <Network size={18} />
+              </button>
+            )}
+            
             {/* Pestaña: Diagrama de Gantt */}
             {!isSidebarCollapsed ? (
               <button
@@ -298,43 +340,43 @@ function ProyectoContent({
               </button>
             )}
 
-            {/* Pestaña: Organigrama EDT */}
+            {/* Pestaña: Diagrama PERT */}
             {!isSidebarCollapsed ? (
               <button
-                onClick={() => setActiveTab('wbs')}
+                onClick={() => setActiveTab('pert')}
                 className={`w-full flex items-start gap-2.5 px-3 py-2 rounded-xl text-left transition-all cursor-pointer ${
-                  activeTab === 'wbs'
+                  activeTab === 'pert'
                     ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 font-semibold'
                     : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900 border border-transparent'
                 }`}
               >
                 <div
                   className={`p-1.5 rounded-lg shrink-0 mt-0.5 transition-colors ${
-                    activeTab === 'wbs'
+                    activeTab === 'pert'
                       ? 'bg-slate-100 text-slate-900'
                       : 'text-slate-400'
                   }`}
                 >
-                  <Network size={16} />
+                  <Workflow size={16} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-semibold leading-tight">Organigrama EDT</div>
+                  <div className="text-xs font-semibold leading-tight">Diagrama PERT</div>
                   <div className="text-[10px] text-slate-400 truncate mt-0.5">
-                    Árbol Jerárquico WBS
+                    Red de Actividades y Nodos
                   </div>
                 </div>
               </button>
             ) : (
               <button
-                onClick={() => setActiveTab('wbs')}
+                onClick={() => setActiveTab('pert')}
                 className={`w-full flex items-center justify-center p-2.5 rounded-xl transition-all cursor-pointer ${
-                  activeTab === 'wbs'
+                  activeTab === 'pert'
                     ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80'
                     : 'text-slate-400 hover:bg-slate-200/50 hover:text-slate-800'
                 }`}
-                title="Organigrama EDT (Árbol WBS)"
+                title="Diagrama PERT (Red de Actividades)"
               >
-                <Network size={18} />
+                <Workflow size={18} />
               </button>
             )}
           </div>
@@ -518,6 +560,15 @@ function ProyectoContent({
               dataVersion={dataVersion}
               isActive={activeTab === 'wbs'}
               onDataChange={handleDataChange}
+            />
+          </div>
+          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === 'pert' ? 'flex' : 'hidden'}`}>
+            <PertDiagram
+              proyectoId={proyecto.id}
+              dataVersion={dataVersion}
+              isActive={activeTab === 'pert'}
+              soloHabiles={soloHabiles}
+              onSoloHabilesChange={setSoloHabiles}
             />
           </div>
         </div>
