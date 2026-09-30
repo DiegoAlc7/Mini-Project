@@ -815,55 +815,34 @@ export default function WbsTreeChart({
 
   return (
     <div className="flex flex-col h-full w-full flex-1 min-h-0 overflow-hidden gap-3">
-      {/* BARRA DE HERRAMIENTAS Y CONTROLES SUPERIOR */}
-      <div className="shrink-0 bg-white border border-slate-200 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
-        {/* Controles de Vista: Leyenda y Estadísticas */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs">
-            <span className="text-slate-500 font-medium">Estructura:</span>
-            <span className="font-bold text-slate-700">{stats.fases} fases</span>
-            <span className="text-slate-300">•</span>
-            <span className="font-bold text-indigo-700">{stats.paquetes} paquetes</span>
-            <span className="text-slate-300">•</span>
-            <span className="font-bold text-slate-700">{stats.actividades} actividades</span>
-            {stats.criticas > 0 && (
-              <>
-                <span className="text-slate-300">•</span>
-                <span className="font-bold text-red-600 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                  {stats.criticas} críticas
-                </span>
-              </>
-            )}
+      {/* Barra de Controles y Filtros Superior (Altura Estática al estilo Gantt) */}
+      <div className="shrink-0 bg-white border border-slate-200 rounded-xl p-3 flex flex-wrap items-center justify-between gap-4 shadow-2xs">
+        {/* Leyenda de Colores (Estilo Unificado al Diagrama de Gantt) */}
+        <div className="flex items-center gap-3.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-xs bg-red-500 shrink-0 shadow-2xs" />
+            <span className="font-semibold text-red-700">Ruta Crítica</span>
           </div>
-
-          {/* Leyenda de Colores Completa */}
-          <div className="hidden xl:flex items-center gap-3 text-[11px] text-slate-600 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-xs bg-slate-900 shrink-0" />
-              <span>Proyecto</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-xs bg-amber-500 shrink-0" />
-              <span>Fases</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-xs bg-indigo-500 shrink-0" />
-              <span>Paquetes</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-xs bg-red-500 shrink-0" />
-              <span className="text-red-700 font-medium">Ruta Crítica</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-xs bg-blue-500 shrink-0" />
-              <span>Actividad</span>
-            </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-xs bg-blue-600 shrink-0 shadow-2xs" />
+            <span className="font-semibold text-blue-700">No Crítica</span>
+          </div>
+          <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+            <span className="w-3.5 h-1.5 rounded-xs bg-indigo-500 shrink-0 shadow-2xs" />
+            <span className="font-semibold text-indigo-700">Paquete de Trabajo</span>
+          </div>
+          <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+            <span className="w-3.5 h-1.5 rounded-xs bg-amber-500 shrink-0 shadow-2xs" />
+            <span className="font-semibold text-amber-800">Fase</span>
+          </div>
+          <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+            <span className="w-3.5 h-1.5 rounded-xs bg-slate-900 shrink-0 shadow-2xs" />
+            <span className="font-semibold text-slate-800">Proyecto</span>
           </div>
         </div>
 
         {/* Acciones: Buscador, Filtros de Expansión y Zoom */}
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+        <div className="flex items-center gap-3 flex-wrap">
           {/* Buscador de nodos */}
           <div className="relative">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -871,8 +850,8 @@ export default function WbsTreeChart({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar en organigrama..."
-              className="pl-8 pr-3 py-1 text-xs border border-slate-200 rounded-lg w-40 sm:w-48 focus:w-56 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50"
+              placeholder="Buscar en estructura..."
+              className="pl-8 pr-3 py-1 text-xs border border-slate-200 rounded-lg w-36 sm:w-44 focus:w-52 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50"
             />
             {searchTerm && (
               <button
@@ -885,66 +864,64 @@ export default function WbsTreeChart({
           </div>
 
           {/* Botones de Colapso Global */}
-          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+          <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
             <button
               onClick={handleExpandAll}
-              className="px-2.5 py-1 rounded-md text-[11px] font-medium text-slate-700 hover:text-slate-900 hover:bg-white transition-all cursor-pointer"
-              title="Expandir todas las cajas del organigrama (Proyecto, Fases, Paquetes y Actividades)"
+              className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                collapsedIds.size === 0 ? 'bg-white text-blue-700 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="Expandir todo el árbol de la EDT"
             >
-              Expandir Todo
+              <span>Expandir Todo</span>
             </button>
             <button
               onClick={handleCollapseToPackages}
-              className="px-2.5 py-1 rounded-md text-[11px] font-medium text-slate-700 hover:text-slate-900 hover:bg-white transition-all cursor-pointer"
-              title="Ver Fases y Paquetes de Trabajo (oculta las actividades hijas)"
+              className="flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium text-slate-600 hover:text-slate-900 transition-all cursor-pointer"
+              title="Ver Fases y Paquetes de Trabajo"
             >
-              Fases y Paquetes
+              <span>Fases y Paquetes</span>
             </button>
             <button
               onClick={handleCollapseToPhases}
-              className="px-2.5 py-1 rounded-md text-[11px] font-medium text-slate-700 hover:text-slate-900 hover:bg-white transition-all cursor-pointer"
-              title="Colapsar todo y ver solo las fases principales"
+              className="flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium text-slate-600 hover:text-slate-900 transition-all cursor-pointer"
+              title="Colapsar a solo Fases"
             >
-              Solo Fases
+              <span>Solo Fases</span>
             </button>
           </div>
 
           {/* Controles de Zoom */}
-          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
             <button
               onClick={handleZoomOut}
-              className="p-1 rounded-md hover:bg-white text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+              className="p-1 hover:bg-white rounded text-slate-600 cursor-pointer"
               title="Alejar (Zoom Out)"
             >
-              <ZoomOut size={14} />
+              <ZoomOut size={15} />
             </button>
-            <button
-              onClick={handleZoomReset}
-              className="px-2 py-0.5 text-[11px] font-mono font-medium text-slate-700 hover:bg-white rounded-md transition-colors cursor-pointer min-w-[42px] text-center"
-              title="Restablecer zoom al 100%"
-            >
+            <span className="text-xs font-mono font-medium px-2 text-slate-600">
               {Math.round(zoom * 100)}%
-            </button>
+            </span>
             <button
               onClick={handleZoomIn}
-              className="p-1 rounded-md hover:bg-white text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+              className="p-1 hover:bg-white rounded text-slate-600 cursor-pointer"
               title="Acercar (Zoom In)"
             >
-              <ZoomIn size={14} />
+              <ZoomIn size={15} />
             </button>
             <button
               onClick={handleFitToScreen}
-              className="p-1 rounded-md hover:bg-white text-slate-600 hover:text-slate-900 transition-colors cursor-pointer border-l border-slate-200 ml-0.5"
-              title="Ajustar organigrama a la pantalla"
+              className="p-1 hover:bg-white rounded text-slate-600 cursor-pointer border-l border-slate-200 ml-0.5"
+              title="Ajustar estructura a la pantalla"
             >
-              <Maximize2 size={13} />
+              <Maximize2 size={14} />
             </button>
             <button
               onClick={handleZoomReset}
-              className="p-1 rounded-md hover:bg-white text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
-              title="Centrar organigrama al 100%"
+              className="p-1 hover:bg-white rounded text-slate-600 cursor-pointer"
+              title="Centrar estructura al 100%"
             >
-              <RotateCcw size={13} />
+              <RotateCcw size={14} />
             </button>
           </div>
         </div>

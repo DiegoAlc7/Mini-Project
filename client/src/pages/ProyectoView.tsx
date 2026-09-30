@@ -280,7 +280,7 @@ function ProyectoContent({
                   <Network size={16} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-semibold leading-tight">Organigrama EDT</div>
+                  <div className="text-xs font-semibold leading-tight">Estructura EDT</div>
                   <div className="text-[10px] text-slate-400 truncate mt-0.5">
                     Árbol Jerárquico WBS
                   </div>
@@ -294,7 +294,7 @@ function ProyectoContent({
                     ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80'
                     : 'text-slate-400 hover:bg-slate-200/50 hover:text-slate-800'
                 }`}
-                title="Organigrama EDT (Árbol WBS)"
+                title="Estructura EDT (Árbol WBS)"
               >
                 <Network size={18} />
               </button>
@@ -462,7 +462,7 @@ function ProyectoContent({
                   ? 'Diagrama de Gantt'
                   : activeTab === 'pert'
                   ? 'Diagrama PERT'
-                  : 'Organigrama EDT'}
+                  : 'Estructura EDT'}
               </span>
             </nav>
           </div>
@@ -519,15 +519,15 @@ function ProyectoContent({
                         {cpmData.actividades ? cpmData.actividades.length : (proyecto.total_actividades || 0)}
                       </strong>{' '}
                       {(cpmData.actividades ? cpmData.actividades.length : (proyecto.total_actividades || 0)) === 1
-                        ? 'tarea'
-                        : 'tareas'}
+                        ? 'Actividad'
+                        : 'Actividades'}
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-red-50 text-red-600 border border-red-200 shadow-2xs">
                     <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
                     <span>
                       <strong className="font-semibold">{cpmData.ruta_critica.length}</strong>{' '}
-                      {cpmData.ruta_critica.length === 1 ? 'tarea crítica' : 'tareas críticas'}
+                      {cpmData.ruta_critica.length === 1 ? 'Crítica' : 'Críticas'}
                     </span>
                   </div>
                 </>
