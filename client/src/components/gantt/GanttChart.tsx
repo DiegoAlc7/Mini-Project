@@ -805,7 +805,6 @@ export default function GanttChart({
                                 <div
                                   className="h-7 flex items-center relative cursor-pointer group/slack"
                                   style={{ width: `${slackWidth}px` }}
-                                  title={`Fecha límite: ${formatDateDDMMYYYY(item.fecha_limite)}`}
                                 >
                                   <div className="w-full h-full bg-blue-500/10 hover:bg-blue-500/20 border-y border-dashed border-blue-400/40 transition-colors flex items-center justify-center relative overflow-hidden">
                                     <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-b border-dotted border-blue-400/35 pointer-events-none" />
@@ -817,7 +816,6 @@ export default function GanttChart({
                                   </div>
                                   <div
                                     className="w-1 h-5 bg-blue-400/70 hover:bg-blue-500 rounded-r-xs shrink-0 shadow-2xs transition-colors z-2"
-                                    title={`Fecha límite sin retrasar el proyecto: ${formatDateDDMMYYYY(item.fecha_limite)}`}
                                   />
                                 </div>
                               )}
