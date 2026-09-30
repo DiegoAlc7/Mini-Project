@@ -158,9 +158,9 @@ export default function PertDiagram({
   }, [actividades]);
 
   // Algoritmo de diseño de grafo PERT (AON - Activity On Node)
-  const { nodes, edges, canvasWidth, canvasHeight, ranksList } = useMemo(() => {
+  const { nodes, edges, canvasWidth, canvasHeight } = useMemo(() => {
     if (!cpmData || !cpmData.actividades || cpmData.actividades.length === 0) {
-      return { nodes: [], edges: [], canvasWidth: 800, canvasHeight: 600, ranksList: [] };
+      return { nodes: [], edges: [], canvasWidth: 800, canvasHeight: 600 };
     }
 
     const cpmActs = cpmData.actividades;
@@ -299,19 +299,19 @@ export default function PertDiagram({
         rank,
         x: 0,
         y: 0,
-        width: 240,
-        height: 126,
+        width: 246,
+        height: 130,
       };
       nodesByRank.get(rank)?.push(actObj);
     });
 
     // 3. Dimensiones de la cuadrícula y coordenadas (X, Y)
-    const cardWidth = 240;
-    const colSpacing = 90;
-    const cardHeight = 126;
-    const rowSpacing = 42;
+    const cardWidth = 246;
+    const colSpacing = 96;
+    const cardHeight = 130;
+    const rowSpacing = 44;
     const startX = 64;
-    const startY = 96;
+    const startY = 48;
 
     // Calcular la altura máxima necesaria en base al rango con más nodos
     let maxNodesInColumn = 1;
@@ -329,6 +329,7 @@ export default function PertDiagram({
       const isStartCol = rank === 0;
       const isEndCol = rank === maxActRank + 1;
       const actualWidth = isStartCol || isEndCol ? 156 : cardWidth;
+      const actualHeight = isStartCol || isEndCol ? 84 : cardHeight;
       const x = startX + rank * (cardWidth + colSpacing);
 
       // Centrado vertical
@@ -341,65 +342,49 @@ export default function PertDiagram({
       list.forEach((n, idx) => {
         const y = startY + verticalOffset + idx * (cardHeight + rowSpacing);
         n.x = x;
-        n.y = isStartCol || isEndCol ? y + (cardHeight - n.height) / 2 : y;
+        n.y = isStartCol || isEndCol ? y + (cardHeight - actualHeight) / 2 : y;
         n.width = actualWidth;
+        n.height = actualHeight;
         positionedNodes.push(n);
         nodeMap.set(n.id, n);
       });
     });
 
     // 4. Crear aristas con curvas Bézier y conexiones a Hitos Inicio y Fin
-    const graphEdges: PertGraphEdge[] = [];
+    interface EdgeDef {
+      id: string;
+      fromNode: PertGraphNode;
+      toNode: PertGraphNode;
+      isCritical: boolean;
+    }
+
+    const rawEdgeDefs: EdgeDef[] = [];
 
     // Dependencias internas entre actividades
     validDeps.forEach((dep) => {
       const fromNode = nodeMap.get(dep.predecesora_id);
       const toNode = nodeMap.get(dep.sucesora_id);
-      if (!fromNode || !toNode) return;
-
-      const x1 = fromNode.x + fromNode.width;
-      const y1 = fromNode.y + fromNode.height / 2;
-      const x2 = toNode.x;
-      const y2 = toNode.y + toNode.height / 2;
-
-      const dx = Math.max(35, (x2 - x1) * 0.45);
-      const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
-      const isCritical = Boolean(fromNode.es_critica && toNode.es_critica);
-
-      graphEdges.push({
-        id: `dep-${dep.id}-${fromNode.id}-${toNode.id}`,
-        fromId: fromNode.id,
-        toId: toNode.id,
-        isCritical,
-        d,
-        arrowX: x2,
-        arrowY: y2,
-      });
+      if (fromNode && toNode) {
+        rawEdgeDefs.push({
+          id: `dep-${dep.id}-${fromNode.id}-${toNode.id}`,
+          fromNode,
+          toNode,
+          isCritical: Boolean(fromNode.es_critica && toNode.es_critica),
+        });
+      }
     });
 
     // Conectar INICIO a actividades sin predecesoras
     cpmActs.forEach((act) => {
       const inc = incoming.get(act.id) || [];
       if (inc.length === 0) {
-        const fromNode = startNode;
         const toNode = nodeMap.get(act.id);
-        if (fromNode && toNode) {
-          const x1 = fromNode.x + fromNode.width;
-          const y1 = fromNode.y + fromNode.height / 2;
-          const x2 = toNode.x;
-          const y2 = toNode.y + toNode.height / 2;
-
-          const dx = Math.max(35, (x2 - x1) * 0.45);
-          const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
-
-          graphEdges.push({
+        if (startNode && toNode) {
+          rawEdgeDefs.push({
             id: `start-to-${act.id}`,
-            fromId: START_NODE_ID,
-            toId: act.id,
+            fromNode: startNode,
+            toNode,
             isCritical: Boolean(toNode.es_critica),
-            d,
-            arrowX: x2,
-            arrowY: y2,
           });
         }
       }
@@ -410,44 +395,93 @@ export default function PertDiagram({
       const out = outgoing.get(act.id) || [];
       if (out.length === 0) {
         const fromNode = nodeMap.get(act.id);
-        const toNode = endNode;
-        if (fromNode && toNode) {
-          const x1 = fromNode.x + fromNode.width;
-          const y1 = fromNode.y + fromNode.height / 2;
-          const x2 = toNode.x;
-          const y2 = toNode.y + toNode.height / 2;
-
-          const dx = Math.max(35, (x2 - x1) * 0.45);
-          const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
-
-          graphEdges.push({
+        if (fromNode && endNode) {
+          rawEdgeDefs.push({
             id: `${act.id}-to-end`,
-            fromId: act.id,
-            toId: END_NODE_ID,
+            fromNode,
+            toNode: endNode,
             isCritical: Boolean(fromNode.es_critica),
-            d,
-            arrowX: x2,
-            arrowY: y2,
           });
         }
       }
     });
 
-    const calculatedWidth = startX + (maxActRank + 2) * (cardWidth + colSpacing) + 120;
-    const calculatedHeight = Math.max(720, totalColumnHeight + startY * 2);
+    // Agrupar aristas por destino y origen para distribuir puertos de conexión
+    const incomingByTarget = new Map<number, EdgeDef[]>();
+    const outgoingBySource = new Map<number, EdgeDef[]>();
 
-    const ranksArray = Array.from({ length: maxActRank + 2 }, (_, i) => ({
-      rank: i,
-      x: startX + i * (cardWidth + colSpacing),
-      label: i === 0 ? 'Hito Inicial' : i === maxActRank + 1 ? 'Hito Final' : `Nivel ${i}`,
-    }));
+    rawEdgeDefs.forEach((e) => {
+      if (!incomingByTarget.has(e.toNode.id)) {
+        incomingByTarget.set(e.toNode.id, []);
+      }
+      incomingByTarget.get(e.toNode.id)!.push(e);
+
+      if (!outgoingBySource.has(e.fromNode.id)) {
+        outgoingBySource.set(e.fromNode.id, []);
+      }
+      outgoingBySource.get(e.fromNode.id)!.push(e);
+    });
+
+    // Ordenar verticalmente por coordenadas del extremo opuesto para evitar cruces
+    incomingByTarget.forEach((list) => {
+      list.sort((a, b) => a.fromNode.y - b.fromNode.y);
+    });
+
+    outgoingBySource.forEach((list) => {
+      list.sort((a, b) => a.toNode.y - b.toNode.y);
+    });
+
+    const graphEdges: PertGraphEdge[] = rawEdgeDefs.map((edge) => {
+      const { fromNode, toNode, isCritical, id } = edge;
+
+      // Cálculo de punto de salida (derecha de fromNode)
+      const outList = outgoingBySource.get(fromNode.id) || [edge];
+      const outCount = outList.length;
+      const outIdx = Math.max(0, outList.indexOf(edge));
+
+      let sourceY = fromNode.y + fromNode.height / 2;
+      if (outCount > 1) {
+        const maxSpread = fromNode.isMilestone ? 36 : 40;
+        const step = Math.min(12, maxSpread / (outCount - 1));
+        sourceY = fromNode.y + fromNode.height / 2 + (outIdx - (outCount - 1) / 2) * step;
+      }
+      const sourceX = fromNode.x + fromNode.width;
+
+      // Cálculo de punto de llegada (izquierda de toNode, 5px antes del borde para la punta de flecha)
+      const inList = incomingByTarget.get(toNode.id) || [edge];
+      const inCount = inList.length;
+      const inIdx = Math.max(0, inList.indexOf(edge));
+
+      let targetY = toNode.y + toNode.height / 2;
+      if (inCount > 1) {
+        const maxSpread = toNode.isMilestone ? 36 : 44;
+        const step = Math.min(14, maxSpread / (inCount - 1));
+        targetY = toNode.y + toNode.height / 2 + (inIdx - (inCount - 1) / 2) * step;
+      }
+      const targetX = toNode.x - 5;
+
+      const dx = Math.max(35, (targetX - sourceX) * 0.45);
+      const d = `M ${sourceX} ${sourceY} C ${sourceX + dx} ${sourceY}, ${targetX - dx} ${targetY}, ${targetX} ${targetY}`;
+
+      return {
+        id,
+        fromId: fromNode.id,
+        toId: toNode.id,
+        isCritical,
+        d,
+        arrowX: targetX,
+        arrowY: targetY,
+      };
+    });
+
+    const calculatedWidth = startX + (maxActRank + 2) * (cardWidth + colSpacing) + 120;
+    const calculatedHeight = Math.max(680, totalColumnHeight + startY * 2);
 
     return {
       nodes: positionedNodes,
       edges: graphEdges,
       canvasWidth: calculatedWidth,
       canvasHeight: calculatedHeight,
-      ranksList: ranksArray,
     };
   }, [cpmData, dependencias, actividadesMap]);
 
@@ -763,23 +797,6 @@ export default function PertDiagram({
             transform: `scale(${zoom})`,
           }}
         >
-          {/* Etiquetas superiores de Nivel / Rango Topológico */}
-          {ranksList.map((r) => (
-            <div
-              key={`rank-header-${r.rank}`}
-              className="absolute text-center select-none pointer-events-none"
-              style={{
-                left: `${r.x}px`,
-                top: '28px',
-                width: r.rank === 0 || r.rank === ranksList.length - 1 ? '156px' : '240px',
-              }}
-            >
-              <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-slate-400 bg-white/80 border border-slate-200 px-2 py-0.5 rounded-full shadow-2xs">
-                {r.label}
-              </span>
-            </div>
-          ))}
-
           {/* CAPA SVG PARA FLECHAS Y CONECTORES DE DEPENDENCIAS */}
           <svg
             className="absolute inset-0 pointer-events-none z-0"
@@ -865,13 +882,6 @@ export default function PertDiagram({
                     height: `${node.height}px`,
                   }}
                 >
-                  {/* Puerto de conexión derecho (para inicio) o izquierdo (para fin) */}
-                  {isStart ? (
-                    <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white border-2 border-emerald-500 z-10 shadow-2xs" />
-                  ) : (
-                    <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white border-2 border-emerald-500 z-10 shadow-2xs" />
-                  )}
-
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
                       <div
@@ -901,7 +911,7 @@ export default function PertDiagram({
             return (
               <div
                 key={node.id}
-                className={`pert-node-card absolute select-none rounded-xl transition-all duration-150 overflow-hidden bg-white border-2 text-left group ${
+                className={`pert-node-card absolute select-none rounded-xl transition-all duration-150 overflow-hidden bg-white border-2 text-left flex flex-col justify-between ${
                   isFilteredOut ? 'opacity-20' : 'opacity-100'
                 } ${
                   isMatch
@@ -919,21 +929,9 @@ export default function PertDiagram({
                   height: `${node.height}px`,
                 }}
               >
-                {/* Puertos de conexión vectoriales (Bordes laterales) */}
-                <div
-                  className={`absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white border-2 z-10 shadow-2xs transition-colors ${
-                    node.es_critica ? 'border-red-500' : 'border-slate-400 group-hover:border-blue-500'
-                  }`}
-                />
-                <div
-                  className={`absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white border-2 z-10 shadow-2xs transition-colors ${
-                    node.es_critica ? 'border-red-500' : 'border-slate-400 group-hover:border-blue-500'
-                  }`}
-                />
-
                 {/* Tira superior de acento según criticidad */}
                 <div
-                  className={`h-1 w-full ${
+                  className={`h-1 w-full shrink-0 ${
                     node.es_critica
                       ? 'bg-gradient-to-r from-red-500 via-rose-500 to-red-600'
                       : 'bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-600'
@@ -941,36 +939,36 @@ export default function PertDiagram({
                 />
 
                 {/* FILA 1 CPM: ES (Temprano) | Te (Duración) | EF (Temprano) */}
-                <div className="grid grid-cols-3 divide-x divide-slate-200 bg-slate-50/80 text-center py-1 text-[10px] font-mono border-b border-slate-200">
+                <div className="grid grid-cols-3 divide-x divide-slate-200 bg-slate-50/90 text-center py-1.5 text-[10px] font-mono border-b border-slate-200 shrink-0">
                   <div title="Inicio Más Temprano (ES)">
-                    <span className="text-[8px] text-slate-400 block font-sans font-bold leading-none">ES</span>
-                    <span className="font-bold text-blue-700">{node.es}</span>
+                    <span className="text-[8px] text-slate-400 block font-sans font-bold leading-none mb-0.5">ES</span>
+                    <span className="font-bold text-blue-700 text-[11px] leading-tight block">{node.es}</span>
                   </div>
                   <div title="Duración Esperada PERT (Te)">
-                    <span className="text-[8px] text-slate-500 block font-sans font-bold leading-none">Te</span>
-                    <span className="font-bold text-slate-900">{node.duracion}d</span>
+                    <span className="text-[8px] text-slate-500 block font-sans font-bold leading-none mb-0.5">Te</span>
+                    <span className="font-bold text-slate-900 text-[11px] leading-tight block">{node.duracion}d</span>
                   </div>
                   <div title="Fin Más Temprano (EF)">
-                    <span className="text-[8px] text-slate-400 block font-sans font-bold leading-none">EF</span>
-                    <span className="font-bold text-blue-700">{node.ef}</span>
+                    <span className="text-[8px] text-slate-400 block font-sans font-bold leading-none mb-0.5">EF</span>
+                    <span className="font-bold text-blue-700 text-[11px] leading-tight block">{node.ef}</span>
                   </div>
                 </div>
 
-                {/* FILA CENTRAL: CÓDIGO EDT, NOMBRE Y RESPONSABLE */}
-                <div className="px-2.5 py-1.5 bg-white flex flex-col justify-between" style={{ height: '62px' }}>
+                {/* FILA CENTRAL: CÓDIGO EDT, ESTADO Y NOMBRE */}
+                <div className="px-3 py-1.5 bg-white flex-1 min-h-0 flex flex-col justify-between">
                   {/* Cabecera del centro: Código y Estado */}
-                  <div className="flex items-center justify-between gap-1 mb-0.5">
-                    <span className="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-800 border border-slate-200">
+                  <div className="flex items-center justify-between gap-1.5 mb-1">
+                    <span className="font-mono text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200 tracking-tight">
                       {node.codigo}
                     </span>
 
                     {node.es_critica ? (
-                      <span className="text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.2 rounded-full flex items-center gap-1 border border-red-200 shadow-2xs">
+                      <span className="text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full flex items-center gap-1 border border-red-200 shadow-2xs shrink-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                         Crítica
                       </span>
                     ) : (
-                      <span className="text-[9px] font-mono font-medium text-slate-500 bg-slate-50 px-1.5 py-0.2 rounded border border-slate-200">
+                      <span className="text-[9px] font-mono font-semibold text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 shrink-0">
                         HT: +{node.holgura_total}d
                       </span>
                     )}
@@ -978,7 +976,7 @@ export default function PertDiagram({
 
                   {/* Nombre de la actividad a 2 líneas */}
                   <h4
-                    className="text-[11px] font-bold text-slate-800 line-clamp-2 leading-snug"
+                    className="text-[11px] font-bold text-slate-800 line-clamp-2 leading-tight tracking-tight"
                     title={node.nombre}
                   >
                     {node.nombre}
@@ -986,17 +984,17 @@ export default function PertDiagram({
                 </div>
 
                 {/* FILA 3 CPM: LS (Tardío) | HT (Holgura Total) | LF (Tardío) */}
-                <div className="grid grid-cols-3 divide-x divide-slate-200 bg-slate-50/90 text-center py-1 text-[10px] font-mono border-t border-slate-200">
+                <div className="grid grid-cols-3 divide-x divide-slate-200 bg-slate-50/90 text-center py-1.5 text-[10px] font-mono border-t border-slate-200 shrink-0">
                   <div title="Inicio Más Tardío (LS)">
-                    <span className="text-[8px] text-slate-400 block font-sans font-bold leading-none">LS</span>
-                    <span className={`font-bold ${node.es_critica ? 'text-red-700' : 'text-slate-700'}`}>
+                    <span className="text-[8px] text-slate-400 block font-sans font-bold leading-none mb-0.5">LS</span>
+                    <span className={`font-bold text-[11px] leading-tight block ${node.es_critica ? 'text-red-700' : 'text-slate-700'}`}>
                       {node.ls}
                     </span>
                   </div>
                   <div title="Holgura Total (HT = LF - EF)">
-                    <span className="text-[8px] text-slate-500 block font-sans font-bold leading-none">HT</span>
+                    <span className="text-[8px] text-slate-500 block font-sans font-bold leading-none mb-0.5">HT</span>
                     <span
-                      className={`font-bold ${
+                      className={`font-bold text-[11px] leading-tight block ${
                         node.holgura_total === 0 ? 'text-red-600 font-extrabold' : 'text-emerald-700'
                       }`}
                     >
@@ -1004,8 +1002,8 @@ export default function PertDiagram({
                     </span>
                   </div>
                   <div title="Fin Más Tardío (LF)">
-                    <span className="text-[8px] text-slate-400 block font-sans font-bold leading-none">LF</span>
-                    <span className={`font-bold ${node.es_critica ? 'text-red-700' : 'text-slate-700'}`}>
+                    <span className="text-[8px] text-slate-400 block font-sans font-bold leading-none mb-0.5">LF</span>
+                    <span className={`font-bold text-[11px] leading-tight block ${node.es_critica ? 'text-red-700' : 'text-slate-700'}`}>
                       {node.lf}
                     </span>
                   </div>
