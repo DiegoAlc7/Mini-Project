@@ -11,6 +11,7 @@ import {
   Calendar,
   User,
   X,
+  Maximize2,
 } from 'lucide-react';
 import type { NodoEdt, CpmResponse, CpmResult } from '../../types';
 import { getEdt, getCpm } from '../../lib/api';
@@ -240,9 +241,10 @@ export default function WbsTreeChart({
     setCollapsedIds(ids);
   };
 
-  // Zoom handlers
+  // Zoom handlers y Auto-Ajuste
+  const contentRef = useRef<HTMLDivElement>(null);
   const handleZoomIn = () => setZoom((z) => Math.min(1.5, Number((z + 0.15).toFixed(2))));
-  const handleZoomOut = () => setZoom((z) => Math.max(0.4, Number((z - 0.15).toFixed(2))));
+  const handleZoomOut = () => setZoom((z) => Math.max(0.35, Number((z - 0.15).toFixed(2))));
   const handleZoomReset = () => {
     setZoom(1);
     if (canvasRef.current) {
@@ -252,6 +254,61 @@ export default function WbsTreeChart({
       el.scrollTop = 0;
     }
   };
+
+  // Ajustar automáticamente a pantalla
+  const handleFitToScreen = () => {
+    if (!canvasRef.current || !contentRef.current) return;
+    const canvas = canvasRef.current;
+    const content = contentRef.current;
+    const availableWidth = canvas.clientWidth - 48;
+    const availableHeight = canvas.clientHeight - 48;
+    const contentWidth = content.scrollWidth;
+    const contentHeight = content.scrollHeight;
+
+    if (contentWidth > 0 && contentHeight > 0) {
+      const scaleX = availableWidth / contentWidth;
+      const scaleY = availableHeight / contentHeight;
+      const bestScale = Math.min(1.1, Math.max(0.35, Math.min(scaleX, scaleY)));
+      setZoom(Number(bestScale.toFixed(2)));
+      setTimeout(() => {
+        if (canvasRef.current) {
+          canvasRef.current.scrollLeft = Math.max(0, (canvasRef.current.scrollWidth - canvasRef.current.clientWidth) / 2);
+          canvasRef.current.scrollTop = 0;
+        }
+      }, 50);
+    }
+  };
+
+  // Auto-expandir nodos ancestros si sus hijos coinciden con la búsqueda
+  useEffect(() => {
+    if (searchTerm.trim().length > 0 && arbolEdt.length > 0) {
+      const idsToKeepOpen = new Set<number>();
+      function verificarMatch(nodo: NodoEdt): boolean {
+        const matchesSelf =
+          nodo.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          nodo.codigo.toLowerCase().includes(searchTerm.toLowerCase());
+        let childMatches = false;
+        if (nodo.children && nodo.children.length > 0) {
+          nodo.children.forEach((c) => {
+            if (verificarMatch(c)) childMatches = true;
+          });
+        }
+        if (childMatches) {
+          idsToKeepOpen.add(nodo.id);
+        }
+        return matchesSelf || childMatches;
+      }
+      arbolEdt.forEach(verificarMatch);
+
+      if (idsToKeepOpen.size > 0) {
+        setCollapsedIds((prev) => {
+          const next = new Set(prev);
+          idsToKeepOpen.forEach((id) => next.delete(id));
+          return next;
+        });
+      }
+    }
+  }, [searchTerm, arbolEdt]);
 
   // Centrar inicialmente el lienzo al cargar
   useEffect(() => {
@@ -289,10 +346,149 @@ export default function WbsTreeChart({
     setIsPanning(false);
   };
 
+  // Renderizador de tarjeta compacta para actividades apiladas en columna vertical (Opción 1)
+  const renderActivityCard = (child: NodoEdt, isLast: boolean) => {
+    const cpm = child.actividad ? cpmMap.get(child.actividad.id) : undefined;
+    const esCritica = cpm ? cpm.es_critica || cpm.holgura_total === 0 : false;
+    const duracion = cpm?.duracion ?? (child.actividad?.duracion_esperada || 0);
+    const responsable = child.actividad?.responsable;
+    const miembro = responsable ? getMiembro(responsable) : undefined;
+
+    const isMatched =
+      searchTerm.trim().length > 0 &&
+      (child.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        child.codigo.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    return (
+      <div key={child.id} className="relative w-full flex items-center justify-end select-none">
+        {/* Riel vertical segmento superior */}
+        <div
+          className="absolute bg-slate-300 w-0.5 pointer-events-none"
+          style={{
+            left: '12px',
+            top: 0,
+            height: '50%',
+          }}
+        />
+
+        {/* Riel vertical segmento inferior hacia la siguiente actividad */}
+        {!isLast && (
+          <div
+            className="absolute bg-slate-300 w-0.5 pointer-events-none"
+            style={{
+              left: '12px',
+              top: '50%',
+              bottom: '-10px',
+            }}
+          />
+        )}
+
+        {/* Ramita horizontal que conecta el riel con la tarjeta */}
+        <div
+          className="absolute bg-slate-300 h-0.5 pointer-events-none"
+          style={{
+            left: '12px',
+            width: '14px',
+            top: '50%',
+          }}
+        />
+
+        {/* Tarjeta compacta y legible de Actividad */}
+        <div
+          onClick={() => setSelectedNode(child)}
+          className={`node-card relative w-[214px] rounded-lg transition-all duration-150 cursor-pointer text-left p-2.5 group bg-white shadow-2xs hover:shadow-md ${
+            isMatched
+              ? 'ring-3 ring-amber-400 scale-[1.02] z-10'
+              : ''
+          } ${
+            esCritica
+              ? 'border-2 border-red-300 hover:border-red-500'
+              : 'border border-slate-200 hover:border-blue-400'
+          }`}
+        >
+          {/* Tira lateral izquierda indicadora de estado crítico */}
+          <div
+            className={`absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-xs ${
+              esCritica ? 'bg-red-500' : 'bg-blue-500'
+            }`}
+          />
+
+          {/* Cabecera: Código EDT, Días y Badge Crítico */}
+          <div className="flex items-center justify-between gap-1 mb-1 pl-1.5">
+            <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200">
+              {child.codigo}
+            </span>
+
+            <div className="flex items-center gap-1">
+              {esCritica ? (
+                <span className="text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 flex items-center gap-1 shadow-2xs">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                  Crítica
+                </span>
+              ) : (
+                <span className="font-mono text-[9px] font-semibold text-slate-500 bg-slate-50 px-1 py-0.5 rounded">
+                  +{cpm?.holgura_total ?? 0}d
+                </span>
+              )}
+              <span className="font-mono font-bold text-[10px] text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                {duracion}d
+              </span>
+            </div>
+          </div>
+
+          {/* Nombre de la actividad */}
+          <h5
+            className="text-[11px] font-bold text-slate-800 line-clamp-2 leading-snug pl-1.5 mb-1.5"
+            title={child.nombre}
+          >
+            {child.nombre}
+          </h5>
+
+          {/* Metadatos inferiores: Fechas y Responsable */}
+          <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-slate-100 text-[10px] pl-1.5">
+            {cpm?.fecha_inicio && cpm?.fecha_fin ? (
+              <span className="font-mono text-slate-500 text-[9px]">
+                {formatShortDate(cpm.fecha_inicio)} → {formatShortDate(cpm.fecha_fin)}
+              </span>
+            ) : (
+              <span className="text-slate-400 text-[9px]">Sin fechas</span>
+            )}
+
+            {responsable && (
+              <div className="flex items-center gap-1 shrink-0" title={responsable}>
+                {miembro ? (
+                  <>
+                    <img
+                      src={miembro.avatar}
+                      alt={miembro.nombre}
+                      className="w-3.5 h-3.5 rounded-full object-cover bg-slate-200"
+                    />
+                    <span className="text-[9px] text-slate-600 font-medium max-w-[65px] truncate">
+                      {miembro.nombre.split(' ')[0]}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <User size={10} className="text-slate-400" />
+                    <span className="text-[9px] text-slate-600 max-w-[65px] truncate">
+                      {responsable.split(' ')[0]}
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Renderizador recursivo de cada nodo del organigrama
   const renderTreeNode = (nodo: NodoEdt) => {
     const isRoot = nodo.padre_id === null;
     const hasChildren = Boolean(nodo.children && nodo.children.length > 0);
+    const areChildrenLeaves =
+      hasChildren && nodo.children.every((c) => !c.children || c.children.length === 0);
     const isCollapsed = collapsedIds.has(nodo.id);
 
     const cpm = nodo.actividad ? cpmMap.get(nodo.actividad.id) : undefined;
@@ -510,42 +706,69 @@ export default function WbsTreeChart({
 
         {/* RAMAS Y SUBÁRBOLES CONECTADOS (Líneas de organigrama) */}
         {hasChildren && !isCollapsed && (
-          <div className="flex flex-col items-center w-full">
-            {/* Línea vertical que desciende del nodo padre */}
-            <div className="w-0.5 h-7 bg-slate-300 shrink-0" />
+          areChildrenLeaves ? (
+            /* Disposición Vertical en Columna para Actividades Hojas */
+            <div className="flex flex-col items-center w-full pt-0.5">
+              {/* Tallo vertical que desciende del nodo padre */}
+              <div className="w-0.5 h-6 bg-slate-300 shrink-0" />
 
-            {/* Fila horizontal de nodos hijos */}
-            <div className="flex items-start justify-center">
-              {nodo.children.map((child, index) => {
-                const isFirst = index === 0;
-                const isLast = index === nodo.children.length - 1;
-                const isOnly = nodo.children.length === 1;
+              {/* Columna de actividades con riel lateral izquierdo */}
+              <div className="relative flex flex-col gap-2.5 items-end w-60">
+                {/* Conector horizontal superior desde el centro (120px) al riel izquierdo (12px) */}
+                <div
+                  className="absolute bg-slate-300 h-0.5 pointer-events-none"
+                  style={{
+                    left: '12px',
+                    width: '108px',
+                    top: 0,
+                  }}
+                />
 
-                return (
-                  <div key={child.id} className="flex flex-col items-center px-4 relative">
-                    {/* Barra horizontal que distribuye a los hijos */}
-                    {!isOnly && (
-                      <div
-                        className={`absolute top-0 h-0.5 bg-slate-300 ${
-                          isFirst
-                            ? 'left-1/2 right-0'
-                            : isLast
-                            ? 'left-0 right-1/2'
-                            : 'left-0 right-0'
-                        }`}
-                      />
-                    )}
-
-                    {/* Línea vertical que conecta la barra horizontal con el hijo */}
-                    <div className="w-0.5 h-7 bg-slate-300 relative z-0 shrink-0" />
-
-                    {/* Llamada recursiva al hijo */}
-                    {renderTreeNode(child)}
-                  </div>
-                );
-              })}
+                {/* Lista de actividades hijas apiladas verticalmente */}
+                {nodo.children.map((child, idx) =>
+                  renderActivityCard(child, idx === nodo.children.length - 1)
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            /* Disposición Horizontal para Niveles Superiores (Proyecto -> Fases -> Paquetes) */
+            <div className="flex flex-col items-center w-full">
+              {/* Línea vertical que desciende del nodo padre */}
+              <div className="w-0.5 h-7 bg-slate-300 shrink-0" />
+
+              {/* Fila horizontal de nodos hijos */}
+              <div className="flex items-start justify-center">
+                {nodo.children.map((child, index) => {
+                  const isFirst = index === 0;
+                  const isLast = index === nodo.children.length - 1;
+                  const isOnly = nodo.children.length === 1;
+
+                  return (
+                    <div key={child.id} className="flex flex-col items-center px-4 relative">
+                      {/* Barra horizontal que distribuye a los hijos */}
+                      {!isOnly && (
+                        <div
+                          className={`absolute top-0 h-0.5 bg-slate-300 ${
+                            isFirst
+                              ? 'left-1/2 right-0'
+                              : isLast
+                              ? 'left-0 right-1/2'
+                              : 'left-0 right-0'
+                          }`}
+                        />
+                      )}
+
+                      {/* Línea vertical que conecta la barra horizontal con el hijo */}
+                      <div className="w-0.5 h-7 bg-slate-300 relative z-0 shrink-0" />
+
+                      {/* Llamada recursiva al hijo */}
+                      {renderTreeNode(child)}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )
         )}
       </div>
     );
@@ -710,9 +933,16 @@ export default function WbsTreeChart({
               <ZoomIn size={14} />
             </button>
             <button
-              onClick={handleZoomReset}
+              onClick={handleFitToScreen}
               className="p-1 rounded-md hover:bg-white text-slate-600 hover:text-slate-900 transition-colors cursor-pointer border-l border-slate-200 ml-0.5"
-              title="Centrar organigrama"
+              title="Ajustar organigrama a la pantalla"
+            >
+              <Maximize2 size={13} />
+            </button>
+            <button
+              onClick={handleZoomReset}
+              className="p-1 rounded-md hover:bg-white text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+              title="Centrar organigrama al 100%"
             >
               <RotateCcw size={13} />
             </button>
@@ -738,6 +968,7 @@ export default function WbsTreeChart({
       >
         {/* Contenedor escalado por el Zoom */}
         <div
+          ref={contentRef}
           className="inline-block min-w-full transition-transform duration-100 origin-top"
           style={{
             transform: `scale(${zoom})`,
