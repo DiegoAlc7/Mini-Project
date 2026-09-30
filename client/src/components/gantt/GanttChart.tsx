@@ -178,10 +178,13 @@ export default function GanttChart({
     return map;
   }, [cpmData]);
 
-  // Total de días del cronograma
+  // Total de días del cronograma: aseguramos un horizonte mínimo de al menos 30 días
+  // para que el calendario tenga amplitud visual aun con una sola actividad pequeña,
+  // más un margen futuro de 10 días tras la última fecha.
   const totalDias = useMemo(() => {
-    if (!cpmData || !cpmData.duracion_total) return 0;
-    return Math.max(1, Math.ceil(cpmData.duracion_total));
+    if (!cpmData) return 0;
+    const duracionReal = Math.ceil(cpmData.duracion_total || 0);
+    return Math.max(30, duracionReal + 10);
   }, [cpmData]);
 
   // Cálculo recursivo de métricas de una Fase
