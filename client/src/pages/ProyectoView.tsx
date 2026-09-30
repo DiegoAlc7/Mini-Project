@@ -12,16 +12,18 @@ import {
   CheckSquare,
   ChevronRight,
   Pencil,
+  Network,
 } from 'lucide-react';
 import type { Proyecto, CpmResponse } from '../types';
 import { getProyecto, getCpm, updateProyecto } from '../lib/api';
 import TreeGrid from '../components/treegrid/TreeGrid';
 import GanttChart from '../components/gantt/GanttChart';
+import WbsTreeChart from '../components/wbs/WbsTreeChart';
 import ProyectoForm from '../components/proyecto/ProyectoForm';
 import TeamManagementModal from '../components/team/TeamManagementModal';
 import { ProjectResourceProvider, useResources } from '../context/ResourceContext';
 
-type Tab = 'plan' | 'gantt';
+type Tab = 'plan' | 'gantt' | 'wbs';
 
 function formatFechaLegible(dStr?: string): string {
   if (!dStr) return '';
@@ -295,6 +297,46 @@ function ProyectoContent({
                 <BarChart3 size={18} />
               </button>
             )}
+
+            {/* Pestaña: Organigrama EDT */}
+            {!isSidebarCollapsed ? (
+              <button
+                onClick={() => setActiveTab('wbs')}
+                className={`w-full flex items-start gap-2.5 px-3 py-2 rounded-xl text-left transition-all cursor-pointer ${
+                  activeTab === 'wbs'
+                    ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 font-semibold'
+                    : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900 border border-transparent'
+                }`}
+              >
+                <div
+                  className={`p-1.5 rounded-lg shrink-0 mt-0.5 transition-colors ${
+                    activeTab === 'wbs'
+                      ? 'bg-slate-100 text-slate-900'
+                      : 'text-slate-400'
+                  }`}
+                >
+                  <Network size={16} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-semibold leading-tight">Organigrama EDT</div>
+                  <div className="text-[10px] text-slate-400 truncate mt-0.5">
+                    Árbol Jerárquico WBS
+                  </div>
+                </div>
+              </button>
+            ) : (
+              <button
+                onClick={() => setActiveTab('wbs')}
+                className={`w-full flex items-center justify-center p-2.5 rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'wbs'
+                    ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80'
+                    : 'text-slate-400 hover:bg-slate-200/50 hover:text-slate-800'
+                }`}
+                title="Organigrama EDT (Árbol WBS)"
+              >
+                <Network size={18} />
+              </button>
+            )}
           </div>
 
           {/* Sección de Gestión de Equipo */}
@@ -372,7 +414,11 @@ function ProyectoContent({
               </button>
               <ChevronRight size={12} className="text-slate-300" />
               <span className="text-slate-600 font-semibold">
-                {activeTab === 'plan' ? 'Plan de Trabajo' : 'Diagrama de Gantt'}
+                {activeTab === 'plan'
+                  ? 'Plan de Trabajo'
+                  : activeTab === 'gantt'
+                  ? 'Diagrama de Gantt'
+                  : 'Organigrama EDT'}
               </span>
             </nav>
           </div>
@@ -464,6 +510,14 @@ function ProyectoContent({
               isActive={activeTab === 'gantt'}
               soloHabiles={soloHabiles}
               onSoloHabilesChange={setSoloHabiles}
+            />
+          </div>
+          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === 'wbs' ? 'flex' : 'hidden'}`}>
+            <WbsTreeChart
+              proyectoId={proyecto.id}
+              dataVersion={dataVersion}
+              isActive={activeTab === 'wbs'}
+              onDataChange={handleDataChange}
             />
           </div>
         </div>
