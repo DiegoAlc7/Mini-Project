@@ -555,7 +555,7 @@ export default function GanttChart({
             <span className="font-semibold text-slate-600">Holgura Total</span>
           </div>
           <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
-            <span className="w-4 h-1.5 rounded-xs bg-slate-900 shrink-0 shadow-2xs" />
+            <span className="w-3.5 h-1.5 rounded-xs bg-slate-900 shrink-0 shadow-2xs" />
             <span className="font-semibold text-slate-800">Paquete de Trabajo</span>
           </div>
         </div>
@@ -737,7 +737,7 @@ export default function GanttChart({
                             width: `${Math.max(28, barWidth)}px`,
                           }}
                         >
-                          {/* Nombre del paquete y fechas sobre el corchete */}
+                          {/* Nombre del paquete y días sobre el corchete */}
                           <div className="text-[10px] text-slate-700 font-medium whitespace-nowrap mb-1 leading-none select-none flex items-center gap-1.5">
                             <span className="font-bold text-slate-900 font-mono">
                               {item.codigo}
@@ -745,9 +745,9 @@ export default function GanttChart({
                             <span className="font-semibold text-slate-800">
                               {item.nombre}
                             </span>
-                            {item.fecha_inicio && item.fecha_fin && (
-                              <span className="text-slate-500 font-mono text-[9px]">
-                                ({formatShortDate(item.fecha_inicio)} - {formatShortDate(item.fecha_fin)})
+                            {item.duracion > 0 && (
+                              <span className="text-slate-600 font-mono font-bold text-[10px]">
+                                ({item.duracion}d)
                               </span>
                             )}
                           </div>
@@ -849,7 +849,7 @@ export default function GanttChart({
             </span>
             {hoveredTask.item.type === 'phase' ? (
               <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full border bg-slate-100 text-slate-900 border-slate-300">
-                Paquete de Trabajo (Resumen)
+                Paquete de Trabajo
               </span>
             ) : hoveredTask.item.es_critica ? (
               <span className="text-[10px] font-bold bg-red-100 text-red-700 px-2.5 py-0.5 rounded-full border border-red-200 flex items-center gap-1.5 shadow-2xs">
@@ -900,24 +900,10 @@ export default function GanttChart({
             {/* Detalle de Holgura Total y Fecha Límite */}
             {hoveredTask.item.type === 'leaf' && hoveredTask.cpm && (hoveredTask.cpm.holgura_total ?? 0) > 0 && (
               <div className="col-span-2 pt-2 mt-1 border-t border-slate-200/70 bg-blue-50/40 -mx-2.5 -mb-2.5 p-2.5 rounded-b-xl flex flex-col gap-1 text-[11px]">
-                <div className="flex items-center justify-between text-slate-800 font-medium">
-                  <span className="flex items-center gap-1.5 text-[10px] text-slate-600">
-                    <span className="w-2 h-2 rounded-xs bg-blue-400/80 inline-block shrink-0 shadow-2xs" />
-                    Holgura Total (Demora permitida):
-                  </span>
-                  <span className="font-bold font-mono text-[11px] text-blue-700">
-                    +{hoveredTask.cpm.holgura_total}d
-                  </span>
-                </div>
                 <div className="flex items-center justify-between text-[10px] text-slate-500">
-                  <span>Fecha límite sin retrasar proyecto:</span>
+                  <span>Fecha límite sin retrasar el proyecto:</span>
                   <span className="font-bold font-mono text-slate-800">
                     {formatDateDDMMYYYY(hoveredTask.cpm.fecha_limite || hoveredTask.item.fecha_limite)}
-                    {hoveredTask.cpm.lf !== undefined && (
-                      <span className="text-[10px] text-slate-400 font-normal ml-1">
-                        (Día {Math.ceil(hoveredTask.cpm.lf)})
-                      </span>
-                    )}
                   </span>
                 </div>
               </div>
