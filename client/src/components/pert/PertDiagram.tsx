@@ -119,6 +119,11 @@ export default function PertDiagram({
     scrollTop: 0,
   });
 
+  // Control de sincronización y caché inteligente
+  const lastLoadedVersionRef = useRef<number>(-1);
+  const prevSoloHabilesRef = useRef<boolean>(soloHabiles);
+  const isFirstMountRef = useRef<boolean>(true);
+
   // Cargar datos de CPM, Actividades y Dependencias
   const cargarDatos = useCallback(async () => {
     setLoading(true);
@@ -133,6 +138,8 @@ export default function PertDiagram({
       setCpmData(cpm);
       setActividades(acts);
       setDependencias(deps);
+      lastLoadedVersionRef.current = dataVersion;
+      prevSoloHabilesRef.current = soloHabiles;
     } catch (err: any) {
       console.error('Error cargando diagrama PERT:', err);
       setError(
@@ -142,11 +149,22 @@ export default function PertDiagram({
     } finally {
       setLoading(false);
     }
-  }, [proyectoId, soloHabiles]);
+  }, [proyectoId, soloHabiles, dataVersion]);
 
   useEffect(() => {
+    // Si la vista está oculta en su primer montaje, postergamos la carga hasta que el usuario la abra
+    if (!isActive && isFirstMountRef.current) {
+      return;
+    }
+
     if (isActive) {
-      cargarDatos();
+      const versionChanged = lastLoadedVersionRef.current !== dataVersion;
+      const soloHabilesChanged = prevSoloHabilesRef.current !== soloHabiles;
+
+      if (isFirstMountRef.current || versionChanged || soloHabilesChanged) {
+        isFirstMountRef.current = false;
+        cargarDatos();
+      }
     }
   }, [cargarDatos, dataVersion, isActive, soloHabiles]);
 

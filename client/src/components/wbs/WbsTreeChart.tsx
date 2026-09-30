@@ -72,6 +72,10 @@ export default function WbsTreeChart({
     scrollTop: 0,
   });
 
+  // Control de sincronización y caché inteligente
+  const lastLoadedVersionRef = useRef<number>(-1);
+  const isFirstMountRef = useRef<boolean>(true);
+
   // Cargar datos del EDT y CPM
   const cargarDatos = useCallback(async () => {
     setLoading(true);
@@ -83,17 +87,29 @@ export default function WbsTreeChart({
       ]);
       setArbolEdt(edt);
       setCpmData(cpm);
+      lastLoadedVersionRef.current = dataVersion;
     } catch (err: any) {
       console.error('Error cargando Organigrama EDT:', err);
       setError(err?.message || 'Error al cargar los datos del organigrama');
     } finally {
       setLoading(false);
     }
-  }, [proyectoId]);
+  }, [proyectoId, dataVersion]);
 
+  // Carga reactiva e inteligente: solo si la vista está activa y los datos cambiaron (o primer acceso)
   useEffect(() => {
+    // Si la vista está oculta en su primer montaje, postergamos la carga hasta que el usuario la abra
+    if (!isActive && isFirstMountRef.current) {
+      return;
+    }
+
     if (isActive) {
-      cargarDatos();
+      const versionChanged = lastLoadedVersionRef.current !== dataVersion;
+
+      if (isFirstMountRef.current || versionChanged) {
+        isFirstMountRef.current = false;
+        cargarDatos();
+      }
     }
   }, [cargarDatos, dataVersion, isActive]);
 
@@ -774,7 +790,7 @@ export default function WbsTreeChart({
     );
   };
 
-  if (loading) {
+  if (loading && arbolEdt.length === 0) {
     return (
       <div className="flex-1 min-h-0 flex items-center justify-center p-12">
         <div className="flex flex-col items-center gap-3">
