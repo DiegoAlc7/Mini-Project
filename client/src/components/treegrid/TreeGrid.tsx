@@ -876,18 +876,9 @@ export default function TreeGrid({ proyectoId, onDataChange, dataVersion = 0 }: 
                   ∑ {duracionFase}d
                 </span>
               ) : (
-                <button
-                  onClick={() => {
-                    setInlineAddingPadreId(nodo.id);
-                    setInlineNombre('');
-                    setExpandedIds((prev) => new Set([...prev, nodo.id]));
-                  }}
-                  className="text-indigo-600 hover:text-indigo-800 text-[11px] font-medium hover:underline inline-flex items-center gap-1 cursor-pointer transition-colors"
-                  title={isFase ? 'Añadir paquete de trabajo' : 'Añadir actividad'}
-                >
-                  <Plus size={11} className="stroke-[2.5]" />
-                  <span>{isFase ? '+ Paquete' : '+ Actividad'}</span>
-                </button>
+                <span className="text-gray-300 font-mono text-xs tracking-widest text-center select-none">
+                  --
+                </span>
               )
             ) : (
               <div
