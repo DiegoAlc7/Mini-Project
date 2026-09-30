@@ -9,6 +9,8 @@ import {
   ZoomOut,
   Calendar,
   Clock,
+  Search,
+  X,
 } from 'lucide-react';
 import { useResources } from '../../context/ResourceContext';
 
@@ -245,7 +247,7 @@ export default function GanttChart({
   /**
    * Aplanamiento Jerárquico de Tareas y Fases en orden secuencial EDT
    */
-  const filasGantt = useMemo<GanttRowItem[]>(() => {
+  const todasFilasGantt = useMemo<GanttRowItem[]>(() => {
     if (!arbolEdt.length) return [];
     const items: GanttRowItem[] = [];
 
@@ -313,6 +315,45 @@ export default function GanttChart({
     sortedRoots.forEach(recorrer);
     return items;
   }, [arbolEdt, calcularMetricasFase, cpmMap]);
+
+  // Término de búsqueda para filtrar tareas en el Gantt
+  const [busqueda, setBusqueda] = useState('');
+
+  // Filas filtradas por el término de búsqueda
+  const filasGantt = useMemo<GanttRowItem[]>(() => {
+    if (!todasFilasGantt.length) return [];
+    if (!busqueda.trim()) return todasFilasGantt;
+
+    const term = busqueda.toLowerCase().trim();
+
+    // Identificar qué nodos coinciden directa o descendentemente
+    const matchingNodeIds = new Set<number>();
+
+    function matchRecur(nodo: NodoEdt): boolean {
+      const matchSelf =
+        (nodo.nombre && nodo.nombre.toLowerCase().includes(term)) ||
+        (nodo.codigo && nodo.codigo.toLowerCase().includes(term)) ||
+        Boolean(nodo.actividad?.responsable && nodo.actividad.responsable.toLowerCase().includes(term));
+
+      let matchChildren = false;
+      if (nodo.children && nodo.children.length > 0) {
+        for (const ch of nodo.children) {
+          if (matchRecur(ch)) {
+            matchChildren = true;
+          }
+        }
+      }
+
+      if (matchSelf || matchChildren) {
+        matchingNodeIds.add(nodo.id);
+        return true;
+      }
+      return false;
+    }
+
+    arbolEdt.forEach(matchRecur);
+    return todasFilasGantt.filter((item) => matchingNodeIds.has(item.nodoId));
+  }, [todasFilasGantt, busqueda, arbolEdt]);
 
   // Mapeo actividadId -> Índice de fila vertical para anclaje de dependencias
   const actividadFilaMap = useMemo(() => {
@@ -566,25 +607,25 @@ export default function GanttChart({
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Selector de modo calendario */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
-            <button
-              onClick={() => handleSoloHabilesChange(false)}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
-                !soloHabiles ? 'bg-white text-blue-700 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Calendar size={13} />
-              <span>Lun a Dom</span>
-            </button>
-            <button
-              onClick={() => handleSoloHabilesChange(true)}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
-                soloHabiles ? 'bg-white text-blue-700 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <span>Días Hábiles</span>
-            </button>
+          {/* Buscador de Tareas */}
+          <div className="relative flex items-center">
+            <Search size={14} className="absolute left-2.5 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar tarea o código..."
+              className="pl-8 pr-7 py-1.5 text-xs bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 focus:border-blue-500 rounded-lg outline-none transition-all w-48 sm:w-56 text-slate-700 placeholder:text-slate-400"
+            />
+            {busqueda && (
+              <button
+                onClick={() => setBusqueda('')}
+                className="absolute right-2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                title="Limpiar búsqueda"
+              >
+                <X size={13} />
+              </button>
+            )}
           </div>
 
           {/* Zoom */}
@@ -714,7 +755,17 @@ export default function GanttChart({
               </svg>
 
               {/* Filas del Diagrama de Gantt */}
-              {filasGantt.map((item) => {
+              {filasGantt.length === 0 ? (
+                <div
+                  className="flex flex-col items-center justify-center py-16 text-slate-400"
+                  style={{ width: `${diasInfo.length * colWidth + 80}px` }}
+                >
+                  <Search size={32} className="text-slate-300 mb-2" />
+                  <p className="text-sm font-semibold text-slate-700">No se encontraron tareas</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Ninguna tarea coincide con "{busqueda}"</p>
+                </div>
+              ) : (
+                filasGantt.map((item) => {
                 const isPhase = item.type === 'phase';
                 const barLeft = Math.round(item.es * colWidth);
                 const barWidth = Math.max(16, Math.round((item.ef - item.es) * colWidth));
@@ -825,7 +876,8 @@ export default function GanttChart({
                       )}
                   </div>
                 );
-              })}
+              })
+            )}
             </div>
           </div>
         </div>

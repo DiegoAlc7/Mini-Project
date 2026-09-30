@@ -10,12 +10,10 @@ import {
   AlertCircle,
   Calendar,
   Clock,
-  User,
   Flag,
   Play,
   CheckCircle2,
   Layers,
-  ArrowRight,
   Info,
   HelpCircle,
   Sparkles,
@@ -107,8 +105,6 @@ export default function PertDiagram({
   // Zoom y Paneo
   const [zoom, setZoom] = useState<number>(0.9);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedNode, setSelectedNode] = useState<PertGraphNode | null>(null);
-  const [hoveredNodeId, setHoveredNodeId] = useState<number | null>(null);
   const [soloRutaCritica, setSoloRutaCritica] = useState(false);
   const [showGuideModal, setShowGuideModal] = useState(false);
 
@@ -486,24 +482,6 @@ export default function PertDiagram({
     }
   };
 
-  // Centrar suavemente hacia un nodo seleccionado
-  const handleFocusNode = (nodeId: number) => {
-    const target = nodes.find((n) => n.id === nodeId);
-    if (target) {
-      setSelectedNode(target);
-      if (canvasRef.current) {
-        const canvas = canvasRef.current;
-        const targetScrollLeft = target.x * zoom - canvas.clientWidth / 2 + (target.width * zoom) / 2;
-        const targetScrollTop = target.y * zoom - canvas.clientHeight / 2 + (target.height * zoom) / 2;
-        canvas.scrollTo({
-          left: Math.max(0, targetScrollLeft),
-          top: Math.max(0, targetScrollTop),
-          behavior: 'smooth',
-        });
-      }
-    }
-  };
-
   // Centrar inicialmente al cargar
   useEffect(() => {
     if (!loading && nodes.length > 0 && canvasRef.current) {
@@ -555,28 +533,6 @@ export default function PertDiagram({
     });
     return ids;
   }, [nodes, searchTerm]);
-
-  // Nodos y Aristas conectadas al nodo bajo el cursor (Hover)
-  const connectedEdgeIds = useMemo(() => {
-    if (hoveredNodeId === null) return new Set<string>();
-    const set = new Set<string>();
-    edges.forEach((e) => {
-      if (e.fromId === hoveredNodeId || e.toId === hoveredNodeId) {
-        set.add(e.id);
-      }
-    });
-    return set;
-  }, [edges, hoveredNodeId]);
-
-  const connectedNeighborIds = useMemo(() => {
-    if (hoveredNodeId === null) return new Set<number>();
-    const set = new Set<number>([hoveredNodeId]);
-    edges.forEach((e) => {
-      if (e.fromId === hoveredNodeId) set.add(e.toId);
-      if (e.toId === hoveredNodeId) set.add(e.fromId);
-    });
-    return set;
-  }, [edges, hoveredNodeId]);
 
   if (loading && !cpmData) {
     return (
@@ -677,27 +633,6 @@ export default function PertDiagram({
             >
               <span className={`w-1.5 h-1.5 rounded-full ${soloRutaCritica ? 'bg-red-500 animate-pulse' : 'bg-slate-400'}`} />
               <span>Solo Críticas</span>
-            </button>
-          </div>
-
-          {/* Selector de modo calendario */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
-            <button
-              onClick={() => handleSoloHabilesChange(false)}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
-                !soloHabiles ? 'bg-white text-blue-700 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Calendar size={13} />
-              <span>Lun a Dom</span>
-            </button>
-            <button
-              onClick={() => handleSoloHabilesChange(true)}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
-                soloHabiles ? 'bg-white text-blue-700 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <span>Días Hábiles</span>
             </button>
           </div>
 
@@ -864,19 +799,6 @@ export default function PertDiagram({
                 <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#ef4444" />
               </marker>
 
-              {/* Marcador de flecha para conexiones activas en Hover (Azul) */}
-              <marker
-                id="pert-arrow-hover"
-                viewBox="0 0 10 10"
-                refX="9"
-                refY="5"
-                markerWidth="6"
-                markerHeight="6"
-                orient="auto"
-              >
-                <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#2563eb" />
-              </marker>
-
               {/* Marcador de flecha normal (Slate neutro) */}
               <marker
                 id="pert-arrow-normal"
@@ -891,41 +813,13 @@ export default function PertDiagram({
               </marker>
             </defs>
 
-            {/* Dibujar aristas con interactividad en Hover */}
+            {/* Dibujar aristas */}
             {edges.map((edge) => {
               const isFilteredOut = soloRutaCritica && !edge.isCritical;
-              const isConnectedToHover = connectedEdgeIds.has(edge.id);
-              const isHoverActive = hoveredNodeId !== null;
-
-              const strokeColor = isConnectedToHover
-                ? edge.isCritical
-                  ? '#dc2626'
-                  : '#2563eb'
-                : edge.isCritical
-                ? '#ef4444'
-                : '#94a3b8';
-
-              const strokeWidth = isConnectedToHover
-                ? 3.2
-                : edge.isCritical
-                ? 2.5
-                : 1.5;
-
-              const strokeOpacity = isFilteredOut
-                ? 0.1
-                : isConnectedToHover
-                ? 1
-                : isHoverActive
-                ? 0.2
-                : edge.isCritical
-                ? 0.95
-                : 0.65;
-
-              const marker = isConnectedToHover
-                ? edge.isCritical
-                  ? 'url(#pert-arrow-critical)'
-                  : 'url(#pert-arrow-hover)'
-                : edge.isCritical
+              const strokeColor = edge.isCritical ? '#ef4444' : '#94a3b8';
+              const strokeWidth = edge.isCritical ? 2.5 : 1.5;
+              const strokeOpacity = isFilteredOut ? 0.1 : edge.isCritical ? 0.95 : 0.65;
+              const marker = edge.isCritical
                 ? 'url(#pert-arrow-critical)'
                 : 'url(#pert-arrow-normal)';
 
@@ -948,11 +842,7 @@ export default function PertDiagram({
           {/* CAPA DE NODOS (CAJAS ESTÁNDAR PERT / CPM) */}
           {nodes.map((node) => {
             const isMatch = matchingNodeIds.has(node.id);
-            const isSelected = selectedNode?.id === node.id;
             const isFilteredOut = soloRutaCritica && !node.es_critica;
-            const isHovered = hoveredNodeId === node.id;
-            const isConnectedNeighbor = connectedNeighborIds.has(node.id);
-            const isHoverActive = hoveredNodeId !== null;
 
             // RENDERIZADO DE HITOS INICIO Y FIN
             if (node.isMilestone) {
@@ -961,21 +851,12 @@ export default function PertDiagram({
               return (
                 <div
                   key={node.id}
-                  onClick={() => setSelectedNode(node)}
-                  onMouseEnter={() => setHoveredNodeId(node.id)}
-                  onMouseLeave={() => setHoveredNodeId(null)}
-                  className={`pert-node-card absolute cursor-pointer select-none rounded-2xl p-3.5 flex flex-col justify-between transition-all duration-150 border-2 shadow-sm ${
-                    isFilteredOut
-                      ? 'opacity-25'
-                      : isHoverActive && !isConnectedNeighbor
-                      ? 'opacity-40'
-                      : 'opacity-100'
+                  className={`pert-node-card absolute select-none rounded-2xl p-3.5 flex flex-col justify-between transition-all duration-150 border-2 shadow-sm ${
+                    isFilteredOut ? 'opacity-25' : 'opacity-100'
                   } ${
                     isStart
                       ? 'bg-slate-900 border-slate-700 text-white hover:border-slate-500 shadow-slate-900/10'
                       : 'bg-slate-900 border-emerald-600/90 text-white hover:border-emerald-500 shadow-emerald-950/15'
-                  } ${
-                    isSelected ? 'ring-4 ring-offset-2 ring-blue-500 scale-[1.02]' : 'hover:scale-[1.02]'
                   }`}
                   style={{
                     left: `${node.x}px`,
@@ -1017,28 +898,14 @@ export default function PertDiagram({
             }
 
             // CAJA ESTÁNDAR PERT/CPM (6 CAMPOS + TÍTULO Y CÓDIGO)
-            const responsable = node.responsable;
-            const miembro = responsable ? getMiembro(responsable) : undefined;
-
             return (
               <div
                 key={node.id}
-                onClick={() => setSelectedNode(node)}
-                onMouseEnter={() => setHoveredNodeId(node.id)}
-                onMouseLeave={() => setHoveredNodeId(null)}
-                className={`pert-node-card absolute cursor-pointer select-none rounded-xl transition-all duration-150 overflow-hidden bg-white border-2 text-left group ${
-                  isFilteredOut
-                    ? 'opacity-20'
-                    : isHoverActive && !isConnectedNeighbor
-                    ? 'opacity-35'
-                    : 'opacity-100'
+                className={`pert-node-card absolute select-none rounded-xl transition-all duration-150 overflow-hidden bg-white border-2 text-left group ${
+                  isFilteredOut ? 'opacity-20' : 'opacity-100'
                 } ${
                   isMatch
                     ? 'ring-4 ring-amber-400 scale-[1.03] z-20 shadow-xl'
-                    : isSelected
-                    ? 'ring-3 ring-blue-500 scale-[1.02] z-10 shadow-lg'
-                    : isHovered
-                    ? 'scale-[1.02] z-10 shadow-lg'
                     : 'shadow-xs hover:shadow-md'
                 } ${
                   node.es_critica
@@ -1148,281 +1015,6 @@ export default function PertDiagram({
           })}
         </div>
       </div>
-
-      {/* DRAWER / PANEL LATERAL DE DETALLE DE ACTIVIDAD SELECCIONADA */}
-      {selectedNode && (
-        <div className="fixed inset-y-0 right-0 w-80 sm:w-96 bg-white border-l border-slate-200 shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
-          {/* Cabecera del Drawer */}
-          <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                {selectedNode.codigo}
-              </span>
-              {selectedNode.es_critica ? (
-                <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full border border-red-200 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                  Ruta Crítica
-                </span>
-              ) : (
-                <span className="text-[10px] font-semibold text-slate-600 bg-slate-200 px-2 py-0.5 rounded-full">
-                  No Crítica
-                </span>
-              )}
-            </div>
-            <button
-              onClick={() => setSelectedNode(null)}
-              className="p-1 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          {/* Contenido con scroll */}
-          <div className="p-5 flex-1 overflow-y-auto space-y-5 text-xs text-slate-700">
-            {/* Título de la actividad */}
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                Actividad Seleccionada
-              </span>
-              <h3 className="text-sm font-bold text-slate-900 leading-snug">
-                {selectedNode.nombre}
-              </h3>
-            </div>
-
-            {/* Matriz Canónica CPM (ES, Te, EF, LS, HT, LF) */}
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                Tiempos del Cronograma CPM
-              </span>
-              <div className="grid grid-cols-3 gap-2 bg-slate-50 border border-slate-200 rounded-xl p-3 font-mono text-[11px] text-center">
-                <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
-                  <span className="text-[9px] text-slate-400 block font-sans font-bold">Inicio Temp (ES)</span>
-                  <span className="font-bold text-blue-700 text-sm">Día {selectedNode.es}</span>
-                </div>
-                <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
-                  <span className="text-[9px] text-slate-500 block font-sans font-bold">Duración (Te)</span>
-                  <span className="font-bold text-slate-900 text-sm">{selectedNode.duracion}d</span>
-                </div>
-                <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
-                  <span className="text-[9px] text-blue-600 block font-sans font-bold">Fin Temp (EF)</span>
-                  <span className="font-bold text-blue-700 text-sm">Día {selectedNode.ef}</span>
-                </div>
-                <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
-                  <span className="text-[9px] text-slate-400 block font-sans font-bold">Inicio Tard (LS)</span>
-                  <span className={`font-bold text-sm ${selectedNode.es_critica ? 'text-red-600' : 'text-slate-700'}`}>
-                    Día {selectedNode.ls}
-                  </span>
-                </div>
-                <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
-                  <span className="text-[9px] text-slate-500 block font-sans font-bold">Holgura Total</span>
-                  <span
-                    className={`font-bold text-sm ${
-                      selectedNode.holgura_total === 0 ? 'text-red-600 font-extrabold' : 'text-emerald-700'
-                    }`}
-                  >
-                    {selectedNode.holgura_total}d
-                  </span>
-                </div>
-                <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
-                  <span className="text-[9px] text-slate-400 block font-sans font-bold">Fin Tard (LF)</span>
-                  <span className={`font-bold text-sm ${selectedNode.es_critica ? 'text-red-600' : 'text-slate-700'}`}>
-                    Día {selectedNode.lf}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Estimaciones Probabilísticas PERT con Fórmula Matemática */}
-            {selectedNode.actividadData && (
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                  Cálculo Probabilístico PERT
-                </span>
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-3">
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
-                      <span className="text-[9px] text-slate-400 block font-medium">Optimista (a)</span>
-                      <span className="font-mono font-bold text-slate-800 text-xs">
-                        {selectedNode.actividadData.duracion_optimista}d
-                      </span>
-                    </div>
-                    <div className="bg-white p-2 rounded-lg border border-blue-200 shadow-2xs">
-                      <span className="text-[9px] text-blue-600 block font-bold">Probable (m)</span>
-                      <span className="font-mono font-bold text-blue-700 text-xs">
-                        {selectedNode.actividadData.duracion_probable}d
-                      </span>
-                    </div>
-                    <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
-                      <span className="text-[9px] text-slate-400 block font-medium">Pesimista (b)</span>
-                      <span className="font-mono font-bold text-slate-800 text-xs">
-                        {selectedNode.actividadData.duracion_pesimista}d
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Fórmula desglosada */}
-                  <div className="p-2 bg-white rounded-lg border border-slate-200 font-mono text-[10px] space-y-1">
-                    <div className="text-slate-500 flex justify-between">
-                      <span>Fórmula Te:</span>
-                      <span className="font-semibold text-slate-700">Te = (a + 4m + b) / 6</span>
-                    </div>
-                    <div className="text-slate-700 flex justify-between font-bold pt-1 border-t border-slate-100">
-                      <span>Resultado:</span>
-                      <span className="text-blue-700">
-                        ({selectedNode.actividadData.duracion_optimista} + 4({selectedNode.actividadData.duracion_probable}) +{' '}
-                        {selectedNode.actividadData.duracion_pesimista}) / 6 = {selectedNode.duracion} días
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-[11px] pt-1">
-                    <span className="text-slate-500">Varianza de Duración (σ²):</span>
-                    <span className="font-mono font-bold text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200">
-                      {selectedNode.actividadData.varianza}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Dependencias Directas (Predecesoras y Sucesoras Interactivas) */}
-            {selectedNode.actividadId && (
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                  Relaciones en el Grafo
-                </span>
-                <div className="space-y-2">
-                  {/* Predecesoras */}
-                  <div>
-                    <span className="text-[10px] text-slate-500 font-medium block mb-1">
-                      Predecesoras (Vienen antes):
-                    </span>
-                    {dependencias.filter((d) => d.sucesora_id === selectedNode.actividadId).length === 0 ? (
-                      <span className="text-[10px] text-slate-400 italic">Ninguna (Conectada al Inicio)</span>
-                    ) : (
-                      <div className="flex flex-wrap gap-1.5">
-                        {dependencias
-                          .filter((d) => d.sucesora_id === selectedNode.actividadId)
-                          .map((d) => (
-                            <button
-                              key={`pred-${d.id}`}
-                              onClick={() => handleFocusNode(d.predecesora_id)}
-                              className="px-2 py-1 rounded-md bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-blue-700 border border-slate-200 transition-colors cursor-pointer font-mono text-[10px] font-bold flex items-center gap-1"
-                              title="Centrar en el grafo"
-                            >
-                              <span>{d.predecesora_codigo || `Act ${d.predecesora_id}`}</span>
-                              <ArrowRight size={10} className="text-slate-400" />
-                            </button>
-                          ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Sucesoras */}
-                  <div className="pt-2 border-t border-slate-100">
-                    <span className="text-[10px] text-slate-500 font-medium block mb-1">
-                      Sucesoras (Vienen después):
-                    </span>
-                    {dependencias.filter((d) => d.predecesora_id === selectedNode.actividadId).length === 0 ? (
-                      <span className="text-[10px] text-slate-400 italic">Ninguna (Conectada al Fin)</span>
-                    ) : (
-                      <div className="flex flex-wrap gap-1.5">
-                        {dependencias
-                          .filter((d) => d.predecesora_id === selectedNode.actividadId)
-                          .map((d) => (
-                            <button
-                              key={`succ-${d.id}`}
-                              onClick={() => handleFocusNode(d.sucesora_id)}
-                              className="px-2 py-1 rounded-md bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-blue-700 border border-slate-200 transition-colors cursor-pointer font-mono text-[10px] font-bold flex items-center gap-1"
-                              title="Centrar en el grafo"
-                            >
-                              <span>{d.sucesora_codigo || `Act ${d.sucesora_id}`}</span>
-                              <ArrowRight size={10} className="text-slate-400" />
-                            </button>
-                          ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Fechas de Calendario */}
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                Fechas en Calendario
-              </span>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2 text-[11px]">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500 flex items-center gap-1.5">
-                    <Calendar size={13} className="text-slate-400" />
-                    <span>Fecha Inicio:</span>
-                  </span>
-                  <span className="font-mono font-semibold text-slate-800">
-                    {formatDate(selectedNode.fecha_inicio)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500 flex items-center gap-1.5">
-                    <Calendar size={13} className="text-slate-400" />
-                    <span>Fecha Fin:</span>
-                  </span>
-                  <span className="font-mono font-semibold text-slate-800">
-                    {formatDate(selectedNode.fecha_fin)}
-                  </span>
-                </div>
-                {selectedNode.fecha_limite && (
-                  <div className="flex items-center justify-between pt-1 border-t border-slate-200">
-                    <span className="text-slate-500 flex items-center gap-1.5">
-                      <Clock size={13} className="text-slate-400" />
-                      <span>Fecha Límite:</span>
-                    </span>
-                    <span className="font-mono font-semibold text-blue-700">
-                      {formatDate(selectedNode.fecha_limite)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Responsable */}
-            {selectedNode.responsable && (
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                  Responsable Asignado
-                </span>
-                <div className="flex items-center gap-2.5 p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
-                  {(() => {
-                    const miembro = getMiembro(selectedNode.responsable!);
-                    return miembro ? (
-                      <>
-                        <img
-                          src={miembro.avatar}
-                          alt={miembro.nombre}
-                          className="w-7 h-7 rounded-full object-cover bg-slate-200"
-                        />
-                        <div>
-                          <div className="font-semibold text-slate-800 leading-tight">
-                            {miembro.nombre}
-                          </div>
-                          <div className="text-[10px] text-slate-400">{miembro.rol}</div>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-slate-500">
-                          <User size={14} />
-                        </div>
-                        <span className="font-medium text-slate-700">{selectedNode.responsable}</span>
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

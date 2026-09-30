@@ -485,8 +485,35 @@ function ProyectoContent({
               </button>
             </div>
 
-            {/* Píldoras/Badges de Estadísticas */}
-            <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
+            {/* Píldoras/Badges de Estadísticas y Selector de Calendario */}
+            <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
+              {/* Selector Lun a Dom / Días Hábiles */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
+                <button
+                  onClick={() => setSoloHabiles(false)}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                    !soloHabiles
+                      ? 'bg-white text-blue-700 shadow-2xs font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="Mostrar todos los días continuos (calendario)"
+                >
+                  <Calendar size={13} />
+                  <span>Lun a Dom</span>
+                </button>
+                <button
+                  onClick={() => setSoloHabiles(true)}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                    soloHabiles
+                      ? 'bg-white text-blue-700 shadow-2xs font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="Excluir fines de semana (sábados y domingos)"
+                >
+                  <span>Días Hábiles</span>
+                </button>
+              </div>
+
               {cpmData ? (
                 <>
                   {infoFechas && (
