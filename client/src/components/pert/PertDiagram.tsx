@@ -596,31 +596,15 @@ export default function PertDiagram({
       <div className="shrink-0 bg-white border border-slate-200 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
         {/* Métricas y Leyenda */}
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs">
-            <span className="text-slate-500 font-medium">Red PERT/CPM:</span>
-            <span className="font-bold text-slate-800">{stats.total} actividades</span>
-            <span className="text-slate-300">•</span>
-            <span className="font-bold text-red-600 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              {stats.criticas} críticas
-            </span>
-            <span className="text-slate-300">•</span>
-            <span className="font-bold text-slate-700">Duración Te: {stats.duracion} días</span>
-          </div>
-
           {/* Leyenda de Colores */}
           <div className="hidden lg:flex items-center gap-3 text-[11px] text-slate-600 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-xs bg-red-500 shrink-0" />
-              <span className="text-red-700 font-medium">Ruta Crítica (HT=0)</span>
+              <span className="text-red-700 font-medium">Ruta Crítica</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-xs bg-blue-600 shrink-0" />
               <span>Actividad Normal</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-xs bg-slate-800 shrink-0" />
-              <span>Hitos Inicio/Fin</span>
             </div>
           </div>
         </div>

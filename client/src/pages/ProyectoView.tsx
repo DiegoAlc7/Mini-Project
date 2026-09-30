@@ -460,6 +460,8 @@ function ProyectoContent({
                   ? 'Plan de Trabajo'
                   : activeTab === 'gantt'
                   ? 'Diagrama de Gantt'
+                  : activeTab === 'pert'
+                  ? 'Diagrama PERT'
                   : 'Organigrama EDT'}
               </span>
             </nav>
