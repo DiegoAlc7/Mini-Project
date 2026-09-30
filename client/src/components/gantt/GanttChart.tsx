@@ -737,14 +737,17 @@ export default function GanttChart({
                             width: `${Math.max(28, barWidth)}px`,
                           }}
                         >
-                          {/* Fechas discretas y duración sobre el corchete */}
-                          <div className="text-[10px] font-mono text-slate-600 font-medium whitespace-nowrap mb-1 leading-none select-none flex items-center gap-1">
-                            <span>
-                              {formatShortDate(item.fecha_inicio)} - {formatShortDate(item.fecha_fin)}
+                          {/* Nombre del paquete y fechas sobre el corchete */}
+                          <div className="text-[10px] text-slate-700 font-medium whitespace-nowrap mb-1 leading-none select-none flex items-center gap-1.5">
+                            <span className="font-bold text-slate-900 font-mono">
+                              {item.codigo}
                             </span>
-                            {item.duracion > 0 && (
-                              <span className="text-slate-800 font-bold">
-                                ({item.duracion}d)
+                            <span className="font-semibold text-slate-800">
+                              {item.nombre}
+                            </span>
+                            {item.fecha_inicio && item.fecha_fin && (
+                              <span className="text-slate-500 font-mono text-[9px]">
+                                ({formatShortDate(item.fecha_inicio)} - {formatShortDate(item.fecha_fin)})
                               </span>
                             )}
                           </div>
