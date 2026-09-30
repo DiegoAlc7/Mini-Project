@@ -9,9 +9,6 @@ import {
   ZoomOut,
   Calendar,
   Clock,
-  Folder,
-  FileText,
-  LayoutList,
 } from 'lucide-react';
 import { useResources } from '../../context/ResourceContext';
 
@@ -106,8 +103,6 @@ export default function GanttChart({
   const [dependencias, setDependencias] = useState<Dependencia[]>([]);
 
   const [colWidth, setColWidth] = useState<number>(44);
-  const [showTaskTable, setShowTaskTable] = useState<boolean>(true);
-  const leftPanelWidth = showTaskTable ? 360 : 0;
   const [localSoloHabiles, setLocalSoloHabiles] = useState<boolean>(false);
   const soloHabiles = propSoloHabiles !== undefined ? propSoloHabiles : localSoloHabiles;
 
@@ -427,9 +422,9 @@ export default function GanttChart({
     const isNearTop = rect.top < 270;
     const y = isNearTop ? rect.bottom : rect.top;
 
-    // Delimitar X dentro de la ventana visible del Gantt para evitar solapar el panel lateral izquierdo
+    // Delimitar X dentro de la ventana visible del Gantt
     const containerRect = scrollContainerRef.current?.getBoundingClientRect();
-    const leftBound = containerRect ? containerRect.left + leftPanelWidth : 0;
+    const leftBound = containerRect ? containerRect.left : 0;
     const rightBound = containerRect ? containerRect.right : window.innerWidth;
     const tooltipHalfWidth = 165; // Tarjeta w-80 (320px) -> mitad 160px + margen de seguridad
 
@@ -584,20 +579,6 @@ export default function GanttChart({
             </button>
           </div>
 
-          {/* Alternar Panel de Tareas Izquierdo */}
-          <button
-            onClick={() => setShowTaskTable((v) => !v)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer border ${
-              showTaskTable
-                ? 'bg-white text-blue-700 border-blue-200 shadow-2xs font-semibold'
-                : 'bg-slate-100 text-slate-600 border-slate-200 hover:text-slate-900 hover:bg-slate-200/70'
-            }`}
-            title={showTaskTable ? 'Ocultar panel lateral de tareas' : 'Mostrar panel lateral de tareas'}
-          >
-            <LayoutList size={13} />
-            <span>{showTaskTable ? 'Panel EDT' : 'Ver EDT'}</span>
-          </button>
-
           {/* Zoom */}
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
             <button
@@ -629,26 +610,12 @@ export default function GanttChart({
           }}
           className="flex-1 min-h-0 overflow-auto relative select-none w-full h-full"
         >
-          <div style={{ width: `${leftPanelWidth + Math.max(900, diasInfo.length * colWidth + 80)}px` }} className="relative min-h-full">
+          <div style={{ width: `${Math.max(900, diasInfo.length * colWidth + 80)}px` }} className="relative min-h-full">
             {/* Fila superior de encabezados: sticky top-0, z-30 */}
             <div
               className="sticky top-0 z-30 bg-white flex border-b border-slate-300 shadow-xs select-none"
               style={{ height: `${headerTotalHeight}px` }}
             >
-              {/* Encabezado de la Tabla de Tareas (Sticky top-0 Y left-0 -> z-40) */}
-              {showTaskTable && (
-                <div
-                  className="sticky left-0 z-40 bg-slate-100 border-r border-slate-300 flex flex-col justify-between px-3 py-1.5 shrink-0 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.1)]"
-                  style={{ width: `${leftPanelWidth}px`, height: `${headerTotalHeight}px` }}
-                >
-                  <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider h-full">
-                    <span className="w-16 shrink-0 font-mono">EDT</span>
-                    <span className="flex-1 px-2 text-slate-700">Tarea / Paquete</span>
-                    <span className="w-12 text-right shrink-0 font-mono">Dur.</span>
-                  </div>
-                </div>
-              )}
-
               {/* Encabezado del Calendario (Semanas y Días) */}
               <div className="flex flex-col flex-1 overflow-hidden">
                 {/* Fila 1: Semanas / Meses */}
@@ -689,10 +656,7 @@ export default function GanttChart({
             {/* Área de Filas del Diagrama */}
             <div className="relative divide-y divide-slate-100">
               {/* Cuadrícula de Fondo con Sombreado de Fines de Semana en la Línea de Tiempo */}
-              <div
-                className="absolute inset-0 flex pointer-events-none z-0"
-                style={{ left: `${leftPanelWidth}px` }}
-              >
+              <div className="absolute inset-0 flex pointer-events-none z-0">
                 {diasInfo.map((dia) => (
                   <div
                     key={dia.index}
@@ -708,7 +672,6 @@ export default function GanttChart({
               <svg
                 className="absolute inset-0 pointer-events-none z-1"
                 style={{
-                  left: `${leftPanelWidth}px`,
                   width: `${diasInfo.length * colWidth}px`,
                   height: `${filasGantt.length * rowHeight}px`,
                 }}
@@ -742,7 +705,7 @@ export default function GanttChart({
                 ))}
               </svg>
 
-              {/* Filas del Diagrama de Gantt (Panel Izquierdo + Barra de Tiempo) */}
+              {/* Filas del Diagrama de Gantt */}
               {filasGantt.map((item) => {
                 const isPhase = item.type === 'phase';
                 const barLeft = Math.round(item.es * colWidth);
@@ -756,76 +719,11 @@ export default function GanttChart({
                 return (
                   <div
                     key={item.id}
-                    className="relative hover:bg-slate-50/50 transition-colors flex items-center"
-                    style={{ height: `${rowHeight}px` }}
+                    className="relative hover:bg-slate-50/50 transition-colors flex items-center shrink-0"
+                    style={{ height: `${rowHeight}px`, width: `${diasInfo.length * colWidth + 80}px` }}
                   >
-                    {/* PANEL IZQUIERDO: Celda de Tarea Fija (Sticky Left) */}
-                    {showTaskTable && (
-                      <div
-                        className={`sticky left-0 z-20 flex items-center justify-between border-r border-slate-300 shrink-0 px-3 select-none shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)] ${
-                          isPhase
-                            ? 'bg-slate-100/95 font-bold text-slate-900 border-b border-slate-200'
-                            : isCritical
-                            ? 'bg-white hover:bg-red-50/40 border-b border-slate-100'
-                            : 'bg-white hover:bg-slate-50 border-b border-slate-100'
-                        }`}
-                        style={{ width: `${leftPanelWidth}px`, height: `${rowHeight}px` }}
-                      >
-                        {/* Código EDT */}
-                        <span
-                          className={`w-16 shrink-0 font-mono text-[11px] ${
-                            isPhase ? 'text-slate-900 font-bold' : 'text-blue-600 font-medium'
-                          }`}
-                        >
-                          {item.codigo}
-                        </span>
-
-                        {/* Ícono y Nombre con Indentación */}
-                        <div
-                          className={`flex items-center gap-1.5 flex-1 min-w-0 pr-2 ${
-                            isPhase ? 'pl-0' : 'pl-3'
-                          }`}
-                        >
-                          {isPhase ? (
-                            <Folder size={13} className="text-slate-900 shrink-0" />
-                          ) : (
-                            <FileText
-                              size={12}
-                              className={isCritical ? 'text-red-500 shrink-0' : 'text-slate-400 shrink-0'}
-                            />
-                          )}
-                          <span
-                            className={`truncate text-xs ${
-                              isPhase ? 'font-bold text-slate-900' : 'font-medium text-slate-700'
-                            }`}
-                            title={item.nombre}
-                          >
-                            {item.nombre}
-                          </span>
-                        </div>
-
-                        {/* Duración */}
-                        <span
-                          className={`w-12 text-right shrink-0 font-mono text-[11px] ${
-                            isPhase
-                              ? 'font-bold text-slate-900'
-                              : isCritical
-                              ? 'font-semibold text-red-600'
-                              : 'text-slate-500'
-                          }`}
-                        >
-                          {isPhase ? `∑ ${item.duracion}d` : `${item.duracion}d`}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* ÁREA DE LA LÍNEA DE TIEMPO (Timeline Area) */}
-                    <div
-                      className="relative h-full flex items-center shrink-0"
-                      style={{ width: `${diasInfo.length * colWidth + 80}px` }}
-                    >
-                      {/* Paquetes de Trabajo: Corchete Negro Sólido */}
-                      {isPhase ? (
+                    {/* Paquetes de Trabajo: Corchete Negro Sólido */}
+                    {isPhase ? (
                         <div
                           onMouseEnter={(e) => handleTaskMouseEnter(e, item)}
                           onMouseLeave={handleTaskMouseLeave}
@@ -909,7 +807,6 @@ export default function GanttChart({
                           );
                         })()
                       )}
-                    </div>
                   </div>
                 );
               })}
