@@ -1,11 +1,13 @@
 {
   "name": "pert-cpm-server",
   "version": "1.0.0",
+  "type": "module",
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "seed": "node seed.js"
+    "seed": "node seed.js",
+    "export:seed": "node scripts/generate-sql-seed.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

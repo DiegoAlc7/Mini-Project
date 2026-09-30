@@ -7,7 +7,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const DB_PATH = path.join(__dirname, '..', '..', 'data.db');
-const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
+const SCHEMA_PATH = fs.existsSync(path.join(__dirname, 'schema.sql'))
+  ? path.join(__dirname, 'schema.sql')
+  : path.join(__dirname, '..', '..', 'src', 'db', 'schema.sql');
+const SEED_PATH = fs.existsSync(path.join(__dirname, 'seed.sql'))
+  ? path.join(__dirname, 'seed.sql')
+  : path.join(__dirname, '..', '..', 'src', 'db', 'seed.sql');
 
 let db: SqlJsDatabase;
 
@@ -32,6 +37,19 @@ export async function initDatabase(): Promise<SqlJsDatabase> {
   // Ejecutar esquema
   const schema = fs.readFileSync(SCHEMA_PATH, 'utf-8');
   db.run(schema);
+
+  // Auto-seed: si la base de datos no tiene proyectos (ej. instalación limpia de git),
+  // sembrar automáticamente el proyecto de ejemplo desde seed.sql
+  const countRow = get('SELECT count(*) as count FROM proyecto');
+  if (!countRow || countRow.count === 0) {
+    if (fs.existsSync(SEED_PATH)) {
+      console.log('🌱 Base de datos limpia detectada. Aplicando seed.sql automáticamente...');
+      const seedSql = fs.readFileSync(SEED_PATH, 'utf-8');
+      db.run(seedSql);
+      saveDatabase();
+      console.log('✅ Proyecto de ejemplo sembrado con éxito.');
+    }
+  }
 
   console.log('✅ Base de datos inicializada en:', DB_PATH);
   return db;

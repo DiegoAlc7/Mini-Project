@@ -7,7 +7,7 @@ async function seed() {
   const resProyectos = await fetch(`${baseUrl}/proyectos`);
   const proyectos = await resProyectos.json();
   
-  let fechaInicioOriginal = '2026-10-05';
+  let fechaInicioOriginal = '2026-11-23';
   for (const p of proyectos) {
     if (p.nombre.toLowerCase().includes('recaudo')) {
       console.log(`   - Eliminando versión anterior: [${p.id}] ${p.nombre}`);
