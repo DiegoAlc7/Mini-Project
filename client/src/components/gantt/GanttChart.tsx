@@ -404,7 +404,11 @@ export default function GanttChart({
   const headerTotalHeight = headerHeightTop + headerHeightBottom;
 
   // Manejador del Hover para mostrar detalle de tarea
-  const handleTaskMouseEnter = (e: React.MouseEvent<HTMLElement>, item: GanttRowItem) => {
+  const handleTaskMouseEnter = (
+    e: React.MouseEvent<HTMLElement>,
+    item: GanttRowItem,
+    taskBarWidth?: number
+  ) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const cpm = item.actividadId ? cpmMap.get(item.actividadId) : undefined;
 
@@ -433,7 +437,8 @@ export default function GanttChart({
 
     const minX = leftBound + tooltipHalfWidth;
     const maxX = Math.max(minX, rightBound - tooltipHalfWidth);
-    const preferredX = rect.left + rect.width / 2;
+    const anchorWidth = taskBarWidth !== undefined ? taskBarWidth : rect.width;
+    const preferredX = rect.left + anchorWidth / 2;
     const x = Math.max(minX, Math.min(maxX, preferredX));
 
     setHoveredTask({
@@ -773,7 +778,9 @@ export default function GanttChart({
 
                           return (
                             <div
-                              className="flex items-center absolute z-2"
+                              onMouseEnter={(e) => handleTaskMouseEnter(e, item, barWidth)}
+                              onMouseLeave={handleTaskMouseLeave}
+                              className="flex items-center absolute z-2 cursor-pointer group/task"
                               style={{
                                 left: `${barLeft}px`,
                                 top: '8px',
@@ -781,8 +788,6 @@ export default function GanttChart({
                             >
                               {/* Barra de la Tarea (limpia con código y días en una sola línea) */}
                               <div
-                                onMouseEnter={(e) => handleTaskMouseEnter(e, item)}
-                                onMouseLeave={handleTaskMouseLeave}
                                 className={`h-7 shadow-xs flex items-center justify-center px-1.5 text-[10px] font-mono font-bold text-white transition-all cursor-pointer whitespace-nowrap overflow-hidden select-none ${barBgClass} hover:brightness-105 hover:ring-2 hover:ring-offset-1 ${
                                   isCritical ? 'hover:ring-red-400' : 'hover:ring-blue-400'
                                 } ${
@@ -798,8 +803,6 @@ export default function GanttChart({
                               {/* Barra de Holgura Total */}
                               {hasSlack && (
                                 <div
-                                  onMouseEnter={(e) => handleTaskMouseEnter(e, item)}
-                                  onMouseLeave={handleTaskMouseLeave}
                                   className="h-7 flex items-center relative cursor-pointer group/slack"
                                   style={{ width: `${slackWidth}px` }}
                                   title={`Fecha límite: ${formatDateDDMMYYYY(item.fecha_limite)}`}
