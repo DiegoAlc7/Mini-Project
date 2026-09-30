@@ -737,9 +737,16 @@ export default function GanttChart({
                             width: `${Math.max(28, barWidth)}px`,
                           }}
                         >
-                          {/* Fechas discretas sobre el corchete */}
-                          <div className="text-[10px] font-mono text-slate-600 font-medium whitespace-nowrap mb-1 leading-none select-none">
-                            {formatShortDate(item.fecha_inicio)} - {formatShortDate(item.fecha_fin)}
+                          {/* Fechas discretas y duración sobre el corchete */}
+                          <div className="text-[10px] font-mono text-slate-600 font-medium whitespace-nowrap mb-1 leading-none select-none flex items-center gap-1">
+                            <span>
+                              {formatShortDate(item.fecha_inicio)} - {formatShortDate(item.fecha_fin)}
+                            </span>
+                            {item.duracion > 0 && (
+                              <span className="text-slate-800 font-bold">
+                                ({item.duracion}d)
+                              </span>
+                            )}
                           </div>
 
                           {/* Corchete Sólido Negro (7px) con patas */}
@@ -769,18 +776,20 @@ export default function GanttChart({
                                 top: '8px',
                               }}
                             >
-                              {/* Barra de la Tarea (limpia con código y días) */}
+                              {/* Barra de la Tarea (limpia con código y días en una sola línea) */}
                               <div
                                 onMouseEnter={(e) => handleTaskMouseEnter(e, item)}
                                 onMouseLeave={handleTaskMouseLeave}
-                                className={`h-7 shadow-xs flex items-center justify-center px-2 text-[10px] font-mono font-bold text-white transition-all cursor-pointer ${barBgClass} hover:brightness-105 hover:ring-2 hover:ring-offset-1 ${
+                                className={`h-7 shadow-xs flex items-center justify-center px-1.5 text-[10px] font-mono font-bold text-white transition-all cursor-pointer whitespace-nowrap overflow-hidden select-none ${barBgClass} hover:brightness-105 hover:ring-2 hover:ring-offset-1 ${
                                   isCritical ? 'hover:ring-red-400' : 'hover:ring-blue-400'
                                 } ${
                                   hasSlack ? 'rounded-l-md rounded-r-none border-r border-black/15' : 'rounded-md'
                                 }`}
                                 style={{ width: `${barWidth}px` }}
                               >
-                                {barWidth >= 50 ? `${item.codigo} (${item.duracion}d)` : `${item.duracion}d`}
+                                <span className="whitespace-nowrap truncate leading-none">
+                                  {barWidth >= 48 ? `${item.codigo} (${item.duracion}d)` : `${item.duracion}d`}
+                                </span>
                               </div>
 
                               {/* Barra de Holgura Total */}
